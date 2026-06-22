@@ -43,10 +43,13 @@ def T_neumann(z, t):
 
 
 def T_robin(z, t):
-    """Eq.18"""
+    """Eq.18  (general term: (nπ/L)·cos(nπz/L) - sin(nπz/L), L=2)
+    BC: dT/dz + T = 0 at both z=0 and z=L.
+    OCR in the paper dropped the π/2 coefficient on the n=1 cos term.
+    """
     return (np.exp(KZ_TRUE * t - z)
             + np.exp(-KZ_TRUE * (np.pi / 2) ** 2 * t)
-              * (np.cos(np.pi * z / 2) - np.sin(np.pi * z / 2))
+              * (np.pi / 2 * np.cos(np.pi * z / 2) - np.sin(np.pi * z / 2))
             + np.exp(-KZ_TRUE * np.pi ** 2 * t)
               * (np.pi * np.cos(np.pi * z) - np.sin(np.pi * z)))
 
@@ -183,12 +186,8 @@ class PINN:
             dT = torch.autograd.grad(T_pred, zt, torch.ones_like(T_pred),
                                      create_graph=True)[0]
             dT_dz = dT[:, 0:1]
-            # dT/dz + T = 0 at z=0;  dT/dz - T = 0 at z=L
-            z_vals = zt[:, 0:1]
-            sign = torch.where(z_vals < 1e-6,
-                               torch.ones_like(z_vals),
-                               -torch.ones_like(z_vals))
-            return dT_dz + sign * T_pred
+            # dT/dz + T = 0 at both z=0 and z=L
+            return dT_dz + T_pred
 
     # ── Total loss ────────────────────────────────────────────────────────────
     def loss(self):
@@ -296,6 +295,19 @@ def run_all(n_runs=10):
     out_dir = "pinn_results"
     os.makedirs(out_dir, exist_ok=True)
 
+    # Per-scenario training config.
+    # Robin BC has a much harder loss landscape (exponential term in solution,
+    # gradient-dependent BC), so it needs more Adam steps and higher w_pde.
+    # Paper Sec 4.2 shows increasing w_pde reduces Robin error.
+    train_cfg = {
+        "DE_Dir_FWD":  dict(adam_steps=5000,  lbfgs_iter=10000, w_pde=1.0),
+        "DE_Neum_FWD": dict(adam_steps=5000,  lbfgs_iter=10000, w_pde=1.0),
+        "DE_Rob_FWD":  dict(adam_steps=20000, lbfgs_iter=20000, w_pde=10.0),
+        "DE_Dir_INV":  dict(adam_steps=5000,  lbfgs_iter=10000, w_pde=1.0),
+        "DE_Neum_INV": dict(adam_steps=5000,  lbfgs_iter=10000, w_pde=1.0),
+        "DE_Rob_INV":  dict(adam_steps=20000, lbfgs_iter=20000, w_pde=10.0),
+    }
+
     scenarios = [
         ("dirichlet", False, "DE_Dir_FWD"),
         ("neumann",   False, "DE_Neum_FWD"),
@@ -324,11 +336,13 @@ def run_all(n_runs=10):
         maes, l2s, pde_res, kz_errs = [], [], [], []
         best_res = None
 
+        cfg = train_cfg[name]
         for seed in range(n_runs):
             np.random.seed(seed)
             torch.manual_seed(seed)
-            model = PINN(bc_type=bc, inverse=inv)
-            elapsed = model.train(adam_steps=5000, lbfgs_iter=10000)
+            model = PINN(bc_type=bc, inverse=inv, w_pde=cfg["w_pde"])
+            elapsed = model.train(adam_steps=cfg["adam_steps"],
+                                  lbfgs_iter=cfg["lbfgs_iter"])
             res = model.evaluate()
 
             # compute mean PDE residual on collocation points
