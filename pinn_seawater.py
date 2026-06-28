@@ -291,8 +291,9 @@ def plot_result(result, title, out_path):
 
 # ── Run all 6 scenarios ───────────────────────────────────────────────────────
 def run_all(n_runs=10):
-    import os
-    out_dir = "pinn_results"
+    import os, datetime
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_dir = f"pinn_results/{timestamp}"
     os.makedirs(out_dir, exist_ok=True)
 
     # Per-scenario training config.
@@ -405,18 +406,44 @@ def run_all(n_runs=10):
 
     # ── Final summary table ──
     sep = "=" * 80
-    print(f"\n\n{sep}")
-    print(f"  FINAL SUMMARY  (mean ± std over {n_runs} runs)")
-    print(sep)
-    print(f"{'Instance':<18} {'PDE res (mean±std)':>26} {'L2 rel err (mean±std)':>26} {'MAE (mean±std)':>26}")
-    print("-" * 98)
+    summary_lines = [
+        f"\n\n{sep}",
+        f"  FINAL SUMMARY  (mean ± std over {n_runs} runs)",
+        sep,
+        f"{'Instance':<18} {'PDE res (mean±std)':>26} {'L2 rel err (mean±std)':>26} {'MAE (mean±std)':>26}",
+        "-" * 98,
+    ]
     for r in all_summary:
         pde_s = f"{r['pde_mean']:.3e}±{r['pde_std']:.3e}"
         l2_s  = f"{r['l2_mean']:.3e}±{r['l2_std']:.3e}"
         mae_s = f"{r['mae_mean']:.3e}±{r['mae_std']:.3e}"
-        print(f"{r['name']:<18} {pde_s:>26} {l2_s:>26} {mae_s:>26}")
+        summary_lines.append(f"{r['name']:<18} {pde_s:>26} {l2_s:>26} {mae_s:>26}")
         if "kz_mean" in r:
-            print(f"  {'kz abs err':>16}: {r['kz_mean']:.3e} ± {r['kz_std']:.3e}")
+            summary_lines.append(f"  {'kz abs err':>16}: {r['kz_mean']:.3e} ± {r['kz_std']:.3e}")
+
+    summary_text = "\n".join(summary_lines)
+    print(summary_text)
+
+    # ── Save results to file ──
+    import csv
+
+    # Plain text log
+    txt_path = f"{out_dir}/results_{timestamp}.txt"
+    with open(txt_path, "w") as f:
+        f.write(f"n_runs={n_runs}\n")
+        f.write(summary_text + "\n")
+    print(f"\n  Results saved: {txt_path}")
+
+    # CSV for easy import into Excel / pandas
+    csv_path = f"{out_dir}/results_{timestamp}.csv"
+    fieldnames = ["name", "pde_mean", "pde_std", "l2_mean", "l2_std",
+                  "mae_mean", "mae_std", "kz_mean", "kz_std"]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in all_summary:
+            writer.writerow({k: r.get(k, "") for k in fieldnames})
+    print(f"  Results saved: {csv_path}")
 
 
 if __name__ == "__main__":
