@@ -29,6 +29,12 @@ Z_MIN, Z_MAX = 0.0, 2.0
 T_MIN, T_MAX = 0.0, 5.0
 KZ_TRUE = 0.05
 
+# Normalize (z,t) → [-1, 1] for AngleEmbedding (avoids RX angle aliasing)
+def normalize_input(zt: torch.Tensor) -> torch.Tensor:
+    z_norm = 2.0 * (zt[:, 0:1] - Z_MIN) / (Z_MAX - Z_MIN) - 1.0
+    t_norm = 2.0 * (zt[:, 1:2] - T_MIN) / (T_MAX - T_MIN) - 1.0
+    return torch.cat([z_norm, t_norm], dim=1)
+
 
 # ── Analytical solutions (same as classical PINN) ─────────────────────────────
 def T_dirichlet(z, t):
@@ -59,7 +65,7 @@ class QuantumLayer(nn.Module):
         RX(θ) RZ(θ) on each qubit — single-qubit rotations (post-entanglement)
     Output: PauliZ expectation value <Z_i> ∈ [-1, 1] for each qubit
     """
-    def __init__(self, n_qubits: int = 4, n_layers: int = 2):
+    def __init__(self, n_qubits: int = 6, n_layers: int = 3):
         super().__init__()
         self.n_qubits = n_qubits
         self.n_layers = n_layers
@@ -101,39 +107,48 @@ class QuantumLayer(nn.Module):
 # ── Hybrid Quantum-Classical Network ──────────────────────────────────────────
 class HybridQNN(nn.Module):
     """
-    Architecture (mirrors DVPDESolver from Afrah et al.):
+    Architecture (mirrors DVPDESolver from Afrah et al., with improvements):
 
         Input (z, t)   [batch, 2]
-            ↓ preprocessor: Linear(2→hidden) + Tanh + Linear(hidden→n_qubits)
+            ↓ normalize_input → [-1,1]
+            ↓ preprocessor: Linear(2→hidden) + Tanh + Linear(hidden→hidden) + Tanh + Linear(hidden→n_qubits)
         [batch, n_qubits]
             ↓ QuantumLayer (VQC)
-        [batch, n_qubits]  — PauliZ expectation values
-            ↓ postprocessor: Linear(n_qubits→hidden) + Tanh + Linear(hidden→1)
+        [batch, n_qubits]  — PauliZ expectation values ∈ [-1,1]
+            ↓ output_scale  — learnable per-qubit scale (breaks [-1,1] saturation)
+            ↓ postprocessor: Linear(n_qubits→hidden) + Tanh + Linear(hidden→hidden) + Tanh + Linear(hidden→1)
         T̂  [batch, 1]
     """
-    def __init__(self, n_qubits: int = 4, n_qlayers: int = 2, hidden: int = 32):
+    def __init__(self, n_qubits: int = 6, n_qlayers: int = 3, hidden: int = 64):
         super().__init__()
         self.preprocessor = nn.Sequential(
             nn.Linear(2, hidden),
             nn.Tanh(),
+            nn.Linear(hidden, hidden),
+            nn.Tanh(),
             nn.Linear(hidden, n_qubits),
         )
         self.quantum = QuantumLayer(n_qubits=n_qubits, n_layers=n_qlayers)
+        # Learnable scale: breaks PauliZ ∈ [-1,1] saturation
+        self.output_scale = nn.Parameter(torch.ones(n_qubits))
         self.postprocessor = nn.Sequential(
             nn.Linear(n_qubits, hidden),
             nn.Tanh(),
+            nn.Linear(hidden, hidden),
+            nn.Tanh(),
             nn.Linear(hidden, 1),
         )
-        # Xavier init for classical layers
         for m in list(self.preprocessor) + list(self.postprocessor):
             if isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
                 nn.init.zeros_(m.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        h = self.preprocessor(x)       # [batch, n_qubits]
-        h = self.quantum(h)            # [batch, n_qubits]
-        return self.postprocessor(h)   # [batch, 1]
+        x_norm = normalize_input(x)            # map to [-1,1] before angle embedding
+        h = self.preprocessor(x_norm)          # [batch, n_qubits]
+        h = self.quantum(h)                    # [batch, n_qubits], values in [-1,1]
+        h = h * self.output_scale              # learnable rescale
+        return self.postprocessor(h)           # [batch, 1]
 
 
 # ── Classical baseline (same as pinn_seawater.py) ─────────────────────────────
@@ -248,33 +263,68 @@ class PINN:
         return L
 
     def train(self, adam_steps=5000, lbfgs_iter=10000):
-        params = list(self.net.parameters())
-        if self.inverse:
-            params.append(self.log_kz)
+        is_quantum = isinstance(self.net, HybridQNN)
+
+        if is_quantum:
+            # Separate LR: quantum params need higher LR; classical pre/post lower
+            quantum_params  = list(self.net.quantum.parameters()) + [self.net.output_scale]
+            classical_params = (list(self.net.preprocessor.parameters())
+                               + list(self.net.postprocessor.parameters()))
+            param_groups = [
+                {"params": quantum_params,  "lr": 5e-3},
+                {"params": classical_params, "lr": 1e-3},
+            ]
+            if self.inverse:
+                param_groups.append({"params": [self.log_kz], "lr": 1e-3})
+        else:
+            all_params = list(self.net.parameters())
+            if self.inverse:
+                all_params.append(self.log_kz)
+            param_groups = [{"params": all_params, "lr": 1e-3}]
 
         self.loss_history = []
         t0 = time.time()
 
-        adam = torch.optim.Adam(params, lr=1e-3)
-        for _ in range(adam_steps):
-            adam.zero_grad()
-            L = self.loss()
-            L.backward()
-            adam.step()
-            self.loss_history.append(L.item())
+        # For quantum: skip L-BFGS (too expensive per QNode eval), run more Adam steps
+        # with cosine LR decay; for classical: keep original Adam + L-BFGS
+        if is_quantum:
+            total_steps = adam_steps + lbfgs_iter  # equivalent total budget
+            adam = torch.optim.Adam(param_groups)
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                adam, T_max=total_steps, eta_min=1e-5
+            )
+            for _ in range(total_steps):
+                adam.zero_grad()
+                L = self.loss()
+                L.backward()
+                adam.step()
+                scheduler.step()
+                self.loss_history.append(L.item())
+        else:
+            adam = torch.optim.Adam(param_groups)
+            for _ in range(adam_steps):
+                adam.zero_grad()
+                L = self.loss()
+                L.backward()
+                adam.step()
+                self.loss_history.append(L.item())
 
-        lbfgs = torch.optim.LBFGS(
-            params, lr=1.0, max_iter=lbfgs_iter,
-            tolerance_grad=1e-9, tolerance_change=1e-11,
-            history_size=100, line_search_fn="strong_wolfe",
-        )
-        def closure():
-            lbfgs.zero_grad()
-            L = self.loss()
-            L.backward()
-            self.loss_history.append(L.item())
-            return L
-        lbfgs.step(closure)
+            all_params_flat = list(self.net.parameters())
+            if self.inverse:
+                all_params_flat.append(self.log_kz)
+            lbfgs = torch.optim.LBFGS(
+                all_params_flat, lr=1.0, max_iter=lbfgs_iter,
+                tolerance_grad=1e-9, tolerance_change=1e-11,
+                history_size=100, line_search_fn="strong_wolfe",
+            )
+            def closure():
+                lbfgs.zero_grad()
+                L = self.loss()
+                L.backward()
+                self.loss_history.append(L.item())
+                return L
+            lbfgs.step(closure)
+
         return time.time() - t0
 
     def evaluate(self, n_test=200):
@@ -339,7 +389,7 @@ def plot_comparison(classical_history, quantum_history, out_path):
 
 
 # ── Main comparison runner ────────────────────────────────────────────────────
-def run_comparison(n_runs=5, n_qubits=4, n_qlayers=2):
+def run_comparison(n_runs=5, n_qubits=6, n_qlayers=3):
     """
     Run all 6 scenarios with both classical and quantum networks.
     For each scenario and seed, trains both models and records metrics.
@@ -482,4 +532,4 @@ def run_comparison(n_runs=5, n_qubits=4, n_qlayers=2):
 if __name__ == "__main__":
     # Quick smoke test: 1 run, small quantum circuit
     # For full comparison matching the paper, use n_runs=10
-    run_comparison(n_runs=1, n_qubits=4, n_qlayers=2)
+    run_comparison(n_runs=1, n_qubits=6, n_qlayers=3)
