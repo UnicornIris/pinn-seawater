@@ -16,6 +16,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 import time
+import os
+import csv
+import datetime
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -212,7 +215,13 @@ class PINN:
         if self.inverse:
             params.append(self.log_kz)
 
+        def grad_norm():
+            grads = [p.grad.detach().norm() for p in params if p.grad is not None]
+            return float(torch.norm(torch.stack(grads))) if grads else 0.0
+
         self.loss_history = []
+        self.grad_norm_history = []
+        self.lbfgs_start = adam_steps  # index in the histories where L-BFGS begins
         t0 = time.time()
 
         # Phase 1: Adam pre-training
@@ -221,8 +230,9 @@ class PINN:
             adam.zero_grad()
             L = self.loss()
             L.backward()
-            adam.step()
             self.loss_history.append(L.item())
+            self.grad_norm_history.append(grad_norm())
+            adam.step()
 
         # Phase 2: L-BFGS fine-tuning
         lbfgs = torch.optim.LBFGS(
@@ -239,6 +249,7 @@ class PINN:
             L = self.loss()
             L.backward()
             self.loss_history.append(L.item())
+            self.grad_norm_history.append(grad_norm())
             return L
 
         lbfgs.step(closure)
@@ -289,9 +300,48 @@ def plot_result(result, title, out_path):
     print(f"  Saved: {out_path}")
 
 
+def save_training_history(loss_history, grad_norm_history, lbfgs_start, csv_path):
+    """Persist the per-iteration loss and gradient-norm trace to disk."""
+    with open(csv_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["iteration", "phase", "loss", "grad_norm"])
+        for i, (loss, gn) in enumerate(zip(loss_history, grad_norm_history)):
+            phase = "adam" if i < lbfgs_start else "lbfgs"
+            w.writerow([i, phase, loss, gn])
+    print(f"  Saved: {csv_path}")
+
+
+def plot_training_diagnostics(loss_history, grad_norm_history, lbfgs_start, title, out_path):
+    """
+    Loss and gradient-norm vs. iteration, Adam/L-BFGS phases marked.
+    A stable configuration shows both curves trending down with no spikes,
+    and the gradient norm collapsing near the end of L-BFGS (first-order
+    optimality: ||grad|| -> 0 at a local minimum).
+    """
+    it = np.arange(len(loss_history))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+
+    axes[0].semilogy(it, loss_history, lw=0.8)
+    axes[0].axvline(lbfgs_start, color="k", ls="--", alpha=0.5, label="Adam → L-BFGS")
+    axes[0].set_xlabel("Iteration"); axes[0].set_ylabel("Loss")
+    axes[0].set_title("Loss history"); axes[0].legend()
+    axes[0].grid(True, which="both", ls="--", alpha=0.3)
+
+    axes[1].semilogy(it, np.maximum(grad_norm_history, 1e-16), lw=0.8, color="tab:orange")
+    axes[1].axvline(lbfgs_start, color="k", ls="--", alpha=0.5, label="Adam → L-BFGS")
+    axes[1].set_xlabel("Iteration"); axes[1].set_ylabel("Gradient norm")
+    axes[1].set_title("Gradient norm history"); axes[1].legend()
+    axes[1].grid(True, which="both", ls="--", alpha=0.3)
+
+    fig.suptitle(title)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=120)
+    plt.close()
+    print(f"  Saved: {out_path}")
+
+
 # ── Run all 6 scenarios ───────────────────────────────────────────────────────
 def run_all(n_runs=10):
-    import os, datetime
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = f"pinn_results/{timestamp}"
     os.makedirs(out_dir, exist_ok=True)
@@ -336,6 +386,9 @@ def run_all(n_runs=10):
 
         maes, l2s, pde_res, kz_errs = [], [], [], []
         best_res = None
+        best_loss_history = None
+        best_grad_norm_history = None
+        best_lbfgs_start = None
 
         cfg = train_cfg[name]
         for seed in range(n_runs):
@@ -370,8 +423,11 @@ def run_all(n_runs=10):
             print(f"  seed={seed}  MAE={res['mae']:.3e}  L2={res['l2']:.3e}"
                   f"  PDE={mean_pde:.3e}  t={elapsed:.1f}s{kz_info}")
 
-            if best_res is None or res["l2"] < l2s[np.argmin(l2s)]:
+            if best_res is None or res["l2"] < min(l2s[:-1], default=1e9):
                 best_res = res
+                best_loss_history = model.loss_history
+                best_grad_norm_history = model.grad_norm_history
+                best_lbfgs_start = model.lbfgs_start
 
         mae_mean, mae_std = np.mean(maes),   np.std(maes)
         l2_mean,  l2_std  = np.mean(l2s),    np.std(l2s)
@@ -394,6 +450,13 @@ def run_all(n_runs=10):
 
         # save plot of the best run
         plot_result(best_res, name, f"{out_dir}/{name}.png")
+
+        # persist + plot the loss / gradient-norm trace of the best run
+        save_training_history(best_loss_history, best_grad_norm_history,
+                               best_lbfgs_start, f"{out_dir}/{name}_history.csv")
+        plot_training_diagnostics(best_loss_history, best_grad_norm_history,
+                                   best_lbfgs_start, name,
+                                   f"{out_dir}/{name}_training_diagnostics.png")
 
         row = dict(name=name,
                    pde_mean=pde_mean, pde_std=pde_std,

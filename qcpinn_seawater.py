@@ -276,13 +276,25 @@ class PINN:
             ]
             if self.inverse:
                 param_groups.append({"params": [self.log_kz], "lr": 1e-3})
+            flat_params = quantum_params + classical_params
+            if self.inverse:
+                flat_params = flat_params + [self.log_kz]
         else:
             all_params = list(self.net.parameters())
             if self.inverse:
                 all_params.append(self.log_kz)
             param_groups = [{"params": all_params, "lr": 1e-3}]
+            flat_params = all_params
+
+        def grad_norm():
+            grads = [p.grad.detach().norm() for p in flat_params if p.grad is not None]
+            return float(torch.norm(torch.stack(grads))) if grads else 0.0
 
         self.loss_history = []
+        self.grad_norm_history = []
+        # Index into the histories where L-BFGS begins; None if this run never
+        # switches to L-BFGS (the quantum path stays on Adam throughout).
+        self.lbfgs_start = None if is_quantum else adam_steps
         t0 = time.time()
 
         # For quantum: skip L-BFGS (too expensive per QNode eval), run more Adam steps
@@ -297,17 +309,19 @@ class PINN:
                 adam.zero_grad()
                 L = self.loss()
                 L.backward()
+                self.loss_history.append(L.item())
+                self.grad_norm_history.append(grad_norm())
                 adam.step()
                 scheduler.step()
-                self.loss_history.append(L.item())
         else:
             adam = torch.optim.Adam(param_groups)
             for _ in range(adam_steps):
                 adam.zero_grad()
                 L = self.loss()
                 L.backward()
-                adam.step()
                 self.loss_history.append(L.item())
+                self.grad_norm_history.append(grad_norm())
+                adam.step()
 
             all_params_flat = list(self.net.parameters())
             if self.inverse:
@@ -322,6 +336,7 @@ class PINN:
                 L = self.loss()
                 L.backward()
                 self.loss_history.append(L.item())
+                self.grad_norm_history.append(grad_norm())
                 return L
             lbfgs.step(closure)
 
@@ -370,6 +385,49 @@ def plot_result(result, title, out_path):
         fig.colorbar(im, ax=ax)
         ax.set_xlabel("z"); ax.set_ylabel("t"); ax.set_title(label)
     fig.suptitle(f"{title}  MAE={result['mae']:.3e}  L2={result['l2']:.3e}")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=120)
+    plt.close()
+
+
+def save_training_history(loss_history, grad_norm_history, lbfgs_start, csv_path):
+    """Persist the per-iteration loss and gradient-norm trace to disk."""
+    with open(csv_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["iteration", "phase", "loss", "grad_norm"])
+        for i, (loss, gn) in enumerate(zip(loss_history, grad_norm_history)):
+            phase = "lbfgs" if (lbfgs_start is not None and i >= lbfgs_start) else "adam"
+            w.writerow([i, phase, loss, gn])
+
+
+def plot_training_diagnostics(loss_history, grad_norm_history, lbfgs_start, title, out_path):
+    """
+    Loss and gradient-norm vs. iteration, with the Adam/L-BFGS boundary marked
+    when the run includes an L-BFGS phase (classical net). A stable
+    configuration shows both curves trending down with no spikes, and the
+    gradient norm collapsing near the end of L-BFGS (first-order optimality:
+    ||grad|| -> 0 at a local minimum).
+    """
+    it = np.arange(len(loss_history))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+
+    axes[0].semilogy(it, loss_history, lw=0.8)
+    if lbfgs_start is not None:
+        axes[0].axvline(lbfgs_start, color="k", ls="--", alpha=0.5, label="Adam → L-BFGS")
+        axes[0].legend()
+    axes[0].set_xlabel("Iteration"); axes[0].set_ylabel("Loss")
+    axes[0].set_title("Loss history")
+    axes[0].grid(True, which="both", ls="--", alpha=0.3)
+
+    axes[1].semilogy(it, np.maximum(grad_norm_history, 1e-16), lw=0.8, color="tab:orange")
+    if lbfgs_start is not None:
+        axes[1].axvline(lbfgs_start, color="k", ls="--", alpha=0.5, label="Adam → L-BFGS")
+        axes[1].legend()
+    axes[1].set_xlabel("Iteration"); axes[1].set_ylabel("Gradient norm")
+    axes[1].set_title("Gradient norm history")
+    axes[1].grid(True, which="both", ls="--", alpha=0.3)
+
+    fig.suptitle(title)
     plt.tight_layout()
     plt.savefig(out_path, dpi=120)
     plt.close()
@@ -431,6 +489,8 @@ def run_comparison(n_runs=5, n_qubits=6, n_qlayers=3):
         metrics = {"classical": [], "quantum": []}
         best = {"classical": None, "quantum": None}
         histories = {"classical": None, "quantum": None}
+        grad_histories = {"classical": None, "quantum": None}
+        lbfgs_starts = {"classical": None, "quantum": None}
 
         for model_type in ["classical", "quantum"]:
             print(f"\n  -- {model_type.upper()} --")
@@ -466,6 +526,8 @@ def run_comparison(n_runs=5, n_qubits=6, n_qlayers=3):
                 if best[model_type] is None or res["l2"] < min(l2s[:-1], default=1e9):
                     best[model_type] = res
                     histories[model_type] = model.loss_history
+                    grad_histories[model_type] = model.grad_norm_history
+                    lbfgs_starts[model_type] = model.lbfgs_start
 
             metrics[model_type] = dict(
                 mae_mean=np.mean(maes), mae_std=np.std(maes),
@@ -488,6 +550,14 @@ def run_comparison(n_runs=5, n_qubits=6, n_qlayers=3):
         for mt in ["classical", "quantum"]:
             plot_result(best[mt], f"{name} ({mt})",
                         f"{out_dir}/{name}_{mt}.png")
+
+        # ── Persist + plot the loss / gradient-norm trace of the best run ─────
+        for mt in ["classical", "quantum"]:
+            save_training_history(histories[mt], grad_histories[mt], lbfgs_starts[mt],
+                                   f"{out_dir}/{name}_{mt}_history.csv")
+            plot_training_diagnostics(histories[mt], grad_histories[mt], lbfgs_starts[mt],
+                                       f"{name} ({mt})",
+                                       f"{out_dir}/{name}_{mt}_training_diagnostics.png")
 
         if histories["classical"] and histories["quantum"]:
             plot_comparison(histories["classical"], histories["quantum"],
