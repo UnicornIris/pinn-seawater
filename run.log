@@ -1,0 +1,112 @@
+/Users/unicorn/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+
+QCPINN Seawater Experiment
+n_qubits=4, n_qlayers=2, n_runs=1
+Output: qcpinn_results/20260706_110419
+
+
+=================================================================
+  DE_Dir_FWD  (bc=dirichlet, inverse=False)  [1 runs]
+=================================================================
+
+  -- CLASSICAL --
+  seed=0  MAE=1.274e-04  L2=2.571e-04  PDE=6.132e-04  t=36.2s
+
+  -- QUANTUM --
+  seed=0  MAE=3.398e-04  L2=6.890e-04  PDE=1.155e-03  t=2790.6s
+
+  ── DE_Dir_FWD: classical vs quantum ──
+  classical   MAE=1.274e-04±0.000e+00  L2=2.571e-04±0.000e+00  PDE=6.132e-04  t=36.2s
+  quantum     MAE=3.398e-04±0.000e+00  L2=6.890e-04±0.000e+00  PDE=1.155e-03  t=2790.6s
+
+=================================================================
+  DE_Neum_FWD  (bc=neumann, inverse=False)  [1 runs]
+=================================================================
+
+  -- CLASSICAL --
+  seed=0  MAE=1.850e-04  L2=4.012e-04  PDE=7.088e-04  t=38.1s
+
+  -- QUANTUM --
+  seed=0  MAE=2.392e-03  L2=4.671e-03  PDE=4.820e-03  t=2773.6s
+
+  ── DE_Neum_FWD: classical vs quantum ──
+  classical   MAE=1.850e-04±0.000e+00  L2=4.012e-04±0.000e+00  PDE=7.088e-04  t=38.1s
+  quantum     MAE=2.392e-03±0.000e+00  L2=4.671e-03±0.000e+00  PDE=4.820e-03  t=2773.6s
+
+=================================================================
+  DE_Rob_FWD  (bc=robin, inverse=False)  [1 runs]
+=================================================================
+
+  -- CLASSICAL --
+  seed=0  MAE=8.560e-05  L2=7.188e-05  PDE=2.839e-04  t=125.7s
+
+  -- QUANTUM --
+  seed=0  MAE=4.436e-04  L2=3.616e-04  PDE=1.156e-03  t=7174.2s
+
+  ── DE_Rob_FWD: classical vs quantum ──
+  classical   MAE=8.560e-05±0.000e+00  L2=7.188e-05±0.000e+00  PDE=2.839e-04  t=125.7s
+  quantum     MAE=4.436e-04±0.000e+00  L2=3.616e-04±0.000e+00  PDE=1.156e-03  t=7174.2s
+
+=================================================================
+  DE_Dir_INV  (bc=dirichlet, inverse=True)  [1 runs]
+=================================================================
+
+  -- CLASSICAL --
+  seed=0  MAE=3.530e-04  L2=7.128e-04  PDE=1.360e-03  t=37.0s  kz_err=3.142e-05
+
+  -- QUANTUM --
+  seed=0  MAE=5.010e-04  L2=1.003e-03  PDE=1.582e-03  t=3016.9s  kz_err=4.501e-05
+
+  ── DE_Dir_INV: classical vs quantum ──
+  classical   MAE=3.530e-04±0.000e+00  L2=7.128e-04±0.000e+00  PDE=1.360e-03  t=37.0s
+  quantum     MAE=5.010e-04±0.000e+00  L2=1.003e-03±0.000e+00  PDE=1.582e-03  t=3016.9s
+
+=================================================================
+  DE_Neum_INV  (bc=neumann, inverse=True)  [1 runs]
+=================================================================
+
+  -- CLASSICAL --
+  seed=0  MAE=1.607e-04  L2=3.500e-04  PDE=6.020e-04  t=37.7s  kz_err=9.942e-06
+
+  -- QUANTUM --
+  seed=0  MAE=1.178e-03  L2=2.485e-03  PDE=3.077e-03  t=3616.2s  kz_err=1.652e-05
+
+  ── DE_Neum_INV: classical vs quantum ──
+  classical   MAE=1.607e-04±0.000e+00  L2=3.500e-04±0.000e+00  PDE=6.020e-04  t=37.7s
+  quantum     MAE=1.178e-03±0.000e+00  L2=2.485e-03±0.000e+00  PDE=3.077e-03  t=3616.2s
+
+=================================================================
+  DE_Rob_INV  (bc=robin, inverse=True)  [1 runs]
+=================================================================
+
+  -- CLASSICAL --
+  seed=0  MAE=7.639e-05  L2=6.967e-05  PDE=2.276e-04  t=130.8s  kz_err=2.474e-06
+
+  -- QUANTUM --
+  seed=0  MAE=3.440e-04  L2=2.873e-04  PDE=1.054e-03  t=28313.0s  kz_err=3.640e-06
+
+  ── DE_Rob_INV: classical vs quantum ──
+  classical   MAE=7.639e-05±0.000e+00  L2=6.967e-05±0.000e+00  PDE=2.276e-04  t=130.8s
+  quantum     MAE=3.440e-04±0.000e+00  L2=2.873e-04±0.000e+00  PDE=1.054e-03  t=28313.0s
+
+
+Results saved to qcpinn_results/20260706_110419/results_20260706_110419.csv
+
+================================================================================
+  FINAL COMPARISON SUMMARY
+================================================================================
+Scenario         Model                 MAE           L2    Time(s)
+----------------------------------------------------------------
+DE_Dir_FWD       classical    1.274e-04  2.571e-04       36.2
+DE_Dir_FWD       quantum      3.398e-04  6.890e-04     2790.6
+DE_Neum_FWD      classical    1.850e-04  4.012e-04       38.1
+DE_Neum_FWD      quantum      2.392e-03  4.671e-03     2773.6
+DE_Rob_FWD       classical    8.560e-05  7.188e-05      125.7
+DE_Rob_FWD       quantum      4.436e-04  3.616e-04     7174.2
+DE_Dir_INV       classical    3.530e-04  7.128e-04       37.0
+DE_Dir_INV       quantum      5.010e-04  1.003e-03     3016.9
+DE_Neum_INV      classical    1.607e-04  3.500e-04       37.7
+DE_Neum_INV      quantum      1.178e-03  2.485e-03     3616.2
+DE_Rob_INV       classical    7.639e-05  6.967e-05      130.8
+DE_Rob_INV       quantum      3.440e-04  2.873e-04    28313.0

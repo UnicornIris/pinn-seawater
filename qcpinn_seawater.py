@@ -65,7 +65,7 @@ class QuantumLayer(nn.Module):
         RX(θ) RZ(θ) on each qubit — single-qubit rotations (post-entanglement)
     Output: PauliZ expectation value <Z_i> ∈ [-1, 1] for each qubit
     """
-    def __init__(self, n_qubits: int = 6, n_layers: int = 3):
+    def __init__(self, n_qubits: int = 4, n_layers: int = 2):
         super().__init__()
         self.n_qubits = n_qubits
         self.n_layers = n_layers
@@ -119,7 +119,7 @@ class HybridQNN(nn.Module):
             ↓ postprocessor: Linear(n_qubits→hidden) + Tanh + Linear(hidden→hidden) + Tanh + Linear(hidden→1)
         T̂  [batch, 1]
     """
-    def __init__(self, n_qubits: int = 6, n_qlayers: int = 3, hidden: int = 64):
+    def __init__(self, n_qubits: int = 4, n_qlayers: int = 2, hidden: int = 32):
         super().__init__()
         self.preprocessor = nn.Sequential(
             nn.Linear(2, hidden),
@@ -532,4 +532,4 @@ def run_comparison(n_runs=5, n_qubits=6, n_qlayers=3):
 if __name__ == "__main__":
     # Quick smoke test: 1 run, small quantum circuit
     # For full comparison matching the paper, use n_runs=10
-    run_comparison(n_runs=1, n_qubits=6, n_qlayers=3)
+    run_comparison(n_runs=1, n_qubits=4, n_qlayers=2)
