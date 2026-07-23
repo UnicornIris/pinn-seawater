@@ -65,7 +65,7 @@ class QuantumLayer(nn.Module):
         RX(θ) RZ(θ) on each qubit — single-qubit rotations (post-entanglement)
     Output: PauliZ expectation value <Z_i> ∈ [-1, 1] for each qubit
     """
-    def __init__(self, n_qubits: int = 4, n_layers: int = 2):
+    def __init__(self, n_qubits: int = 4, n_layers: int = 2, init_std: float = None):
         super().__init__()
         self.n_qubits = n_qubits
         self.n_layers = n_layers
@@ -74,7 +74,12 @@ class QuantumLayer(nn.Module):
         self.params = nn.Parameter(
             torch.empty(n_layers, n_qubits * 4, dtype=torch.float32)
         )
-        nn.init.xavier_normal_(self.params)
+        if init_std is None:
+            nn.init.xavier_normal_(self.params)
+        else:
+            # Small-scale init to avoid barren-plateau-like flat gradients
+            # from angles spread too wide by xavier_normal_.
+            nn.init.normal_(self.params, mean=0.0, std=init_std)
 
         dev = qml.device("default.qubit", wires=n_qubits)
         self._qnode = qml.QNode(
@@ -119,7 +124,8 @@ class HybridQNN(nn.Module):
             ↓ postprocessor: Linear(n_qubits→hidden) + Tanh + Linear(hidden→hidden) + Tanh + Linear(hidden→1)
         T̂  [batch, 1]
     """
-    def __init__(self, n_qubits: int = 4, n_qlayers: int = 2, hidden: int = 32):
+    def __init__(self, n_qubits: int = 4, n_qlayers: int = 2, hidden: int = 32,
+                 quantum_init_std: float = None):
         super().__init__()
         self.preprocessor = nn.Sequential(
             nn.Linear(2, hidden),
@@ -128,7 +134,8 @@ class HybridQNN(nn.Module):
             nn.Tanh(),
             nn.Linear(hidden, n_qubits),
         )
-        self.quantum = QuantumLayer(n_qubits=n_qubits, n_layers=n_qlayers)
+        self.quantum = QuantumLayer(n_qubits=n_qubits, n_layers=n_qlayers,
+                                     init_std=quantum_init_std)
         # Learnable scale: breaks PauliZ ∈ [-1,1] saturation
         self.output_scale = nn.Parameter(torch.ones(n_qubits))
         self.postprocessor = nn.Sequential(
@@ -262,7 +269,7 @@ class PINN:
             L += self.w_data * torch.mean((self.net(self.zt_data) - self.T_data) ** 2)
         return L
 
-    def train(self, adam_steps=5000, lbfgs_iter=10000):
+    def train(self, adam_steps=5000, lbfgs_iter=10000, eta_min=1e-5):
         is_quantum = isinstance(self.net, HybridQNN)
 
         if is_quantum:
@@ -303,7 +310,7 @@ class PINN:
             total_steps = adam_steps + lbfgs_iter  # equivalent total budget
             adam = torch.optim.Adam(param_groups)
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                adam, T_max=total_steps, eta_min=1e-5
+                adam, T_max=total_steps, eta_min=eta_min
             )
             for _ in range(total_steps):
                 adam.zero_grad()
