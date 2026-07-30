@@ -297,8 +297,20 @@ class PINN:
             grads = [p.grad.detach().norm() for p in flat_params if p.grad is not None]
             return float(torch.norm(torch.stack(grads))) if grads else 0.0
 
+        # Circuit-only gradient norm (excludes output_scale and the classical
+        # pre/post-processor) — the quantity a barren plateau actually collapses,
+        # tracked separately from grad_norm() so circuit-depth/qubit-count
+        # ablations can see it directly instead of it being diluted by the
+        # classical params' gradients.
+        circuit_params = list(self.net.quantum.parameters()) if is_quantum else []
+
+        def circuit_grad_norm():
+            grads = [p.grad.detach().norm() for p in circuit_params if p.grad is not None]
+            return float(torch.norm(torch.stack(grads))) if grads else 0.0
+
         self.loss_history = []
         self.grad_norm_history = []
+        self.circuit_grad_norm_history = []
         # Index into the histories where L-BFGS begins; None if this run never
         # switches to L-BFGS (the quantum path stays on Adam throughout).
         self.lbfgs_start = None if is_quantum else adam_steps
@@ -318,6 +330,7 @@ class PINN:
                 L.backward()
                 self.loss_history.append(L.item())
                 self.grad_norm_history.append(grad_norm())
+                self.circuit_grad_norm_history.append(circuit_grad_norm())
                 adam.step()
                 scheduler.step()
         else:
@@ -328,6 +341,7 @@ class PINN:
                 L.backward()
                 self.loss_history.append(L.item())
                 self.grad_norm_history.append(grad_norm())
+                self.circuit_grad_norm_history.append(circuit_grad_norm())
                 adam.step()
 
             all_params_flat = list(self.net.parameters())
@@ -344,6 +358,7 @@ class PINN:
                 L.backward()
                 self.loss_history.append(L.item())
                 self.grad_norm_history.append(grad_norm())
+                self.circuit_grad_norm_history.append(circuit_grad_norm())
                 return L
             lbfgs.step(closure)
 
