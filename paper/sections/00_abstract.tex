@@ -1,0 +1,20 @@
+% Draft abstract -- rewrite once Discussion/Conclusion are final; abstracts
+% should be written last but a placeholder here keeps main.tex compiling.
+Physics-informed neural networks (PINNs) that replace part of the network
+with a variational quantum circuit (QCPINN) have recently been reported to
+match or exceed classical PINNs while using far fewer trainable parameters.
+We evaluate this claim on a seawater temperature diffusion PDE with three
+boundary-condition types (Dirichlet, Neumann, Robin) and both forward and
+inverse problem variants, using the quantum circuit ansatz proposed by
+\citet{farea2025qcpinn}. Across all six scenarios, the quantum branch is
+both less accurate (\todo{X--Y}$\times$ higher mean absolute error) and
+substantially slower in wall-clock time (\todo{X--Y}$\times$) than the
+classical baseline. Through a two-stage ablation -- first over training
+hyperparameters (initialization scale, learning-rate schedule), then over
+circuit structure (qubit count, circuit depth) with direct measurement of
+the circuit-only gradient norm -- we rule out hyperparameter choice as the
+cause and find a structure-dependent effect that fits neither a clean
+expressivity-limited nor a clean barren-plateau account. We discuss why
+wall-clock accounting, largely absent from prior QCPINN evaluations, changes
+the practical picture, and what our gradient measurements add to existing
+theoretical barren-plateau claims.

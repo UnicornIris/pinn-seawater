@@ -1,0 +1,105 @@
+% Revised 2026-08-28 after full-text verification of farea2025qcpinn and
+% hqpinn2025flow (see references.bib changelog comment). Numbers and quotes
+% below are checked against the source PDFs, not abstract summaries.
+% Remaining citations (qcpinn2025reservoir, hqcpinn2026hydro, qpinnmac2025)
+% are still unverified stubs -- see references.bib TODOs.
+
+Physics-informed neural networks (PINNs) \citep{raissi2019pinn} have become
+a standard tool for solving forward and inverse PDE problems by embedding
+the governing equations directly into the training loss. Motivated by
+broader interest in quantum machine learning for scientific computing, a
+growing line of work replaces part of the classical network with a
+variational quantum circuit (VQC), typically in a hybrid architecture where
+classical layers handle pre- and post-processing while the VQC provides the
+trainable core -- an approach variously termed QPINN or QCPINN.
+
+\citet{farea2025qcpinn} introduce QCPINN and evaluate it, alongside a
+continuous-variable (qumode-based) variant that trains very poorly across
+the board, on five forward-only PDE benchmarks with Dirichlet-type boundary
+conditions: Helmholtz, a 2D lid-driven cavity flow, a 1D wave equation,
+Klein-Gordon, and convection-diffusion. Their headline claim -- 10--30\% of
+the trainable parameters of a classical PINN with comparable or better
+accuracy -- holds for three of the five: a 4--64\% reduction in relative
+$L_2$ error on Helmholtz, Klein-Gordon, and convection-diffusion. On the
+remaining two, the quantum branch is \emph{less} accurate than the
+classical baseline despite using far fewer parameters (cavity: 11--23\%
+higher relative error across the three output fields; wave: 12\% higher),
+which the authors state plainly rather than omit \citep[Sec.~8,
+``Conclusion'']{farea2025qcpinn}. They also report a timing column absent
+from the abstract: per-iteration wall-clock time is 15--40$\times$ that of
+the classical baseline in every one of the five benchmarks, which they
+attribute to the cost of simulating the circuit classically rather than to
+the algorithm itself. Separately, their qubit-based circuit sweep tests
+four named topologies (Alternate, Cascade, Cross-mesh, Layered) crossed
+with two data-encoding schemes (amplitude, angle); the accuracy and timing
+numbers above are for each benchmark's best-performing topology, most
+often Cascade or Cross-mesh -- both of which use continuously-tunable
+controlled-rotation entanglers (CRX/CRZ) rather than fixed CNOT gates,
+which the authors argue is why those two topologies converge more reliably
+than Alternate or Layered.
+
+\citet{hqpinn2025flow} report a closely related pattern on a different
+problem family: the compressible Euler equations, tested across a smooth
+harmonic traveling wave, a non-harmonic solution with a moving contact
+discontinuity, and a 2D transonic aerofoil flow with a shock. A quantum
+branch whose functional form is an explicit truncated Fourier series
+achieves the single best loss of any model on the harmonic case (an
+order-of-magnitude improvement over the best classical network, using far
+fewer parameters), but ``significantly underperformed'' on the non-harmonic
+case and underperformed further still on the shock-dominated transonic
+case, where the quantum branch is additionally under-parameterized. The
+paper's own stated thesis is that harmonicity of the target solution, not
+problem difficulty in general, is what determines whether the quantum
+branch helps: ``quantum PINNs excel in harmonic regimes... due to the
+Fourier structure of PQCs... [but] struggle to generalize to
+discontinuities or shocks.'' On timing, wall-clock cost is reported only
+for the transonic case, where per-epoch cost for the quantum configurations
+ranges 17--82$\times$ that of the classical configurations tested (the
+paper's own summary rounds this to ``up to 100$\times$''); a separate,
+larger ``two orders of magnitude'' figure appearing earlier in the paper is
+attributed to other authors' measurements, not to this paper's own
+experiments. Notably, this paper does not use the term ``barren plateau''
+anywhere; its account of trainability loss in larger quantum models is
+framed instead as ``excessive expressibility,'' a distinct (if related)
+diagnosis.
+
+Read together, these two papers already show that the value of a quantum
+branch in a hybrid PINN is problem-dependent rather than uniform -- within
+a single paper's own benchmark suite, in both cases -- and that reporting
+practices vary: parameter-count efficiency is reported everywhere, but
+wall-clock or per-iteration time is reported only for a subset of
+benchmarks in each paper (all five in \citealp{farea2025qcpinn}, only the
+hardest of three in \citealp{hqpinn2025flow}), which limits how directly
+either paper's timing claims generalize.
+\todo{Add hydrological \citep{hqcpinn2026hydro}, reservoir seepage
+\citep{qcpinn2025reservoir}, and the theoretical barren-plateau bound
+\citep{qpinnmac2025} once those are verified against full text -- see
+references.bib TODOs. Until then, do not restate the epoch-count /
+polynomial-gradient-bound claims for these three beyond what the earlier
+abstract-level search already summarized in chat, since that summary has
+not been checked against the full papers the way the two above have.}
+
+Our work differs from this pair of closely related studies in three ways.
+First, both restrict the quantum branch to forward, Dirichlet-type problems
+(\citealp{farea2025qcpinn} exclusively; \citealp{hqpinn2025flow} uses
+Dirichlet conditions throughout as well); we test both forward and inverse
+formulations across three boundary-condition types (Dirichlet, Neumann,
+Robin) on a single diffusion PDE with closed-form solutions in all six
+cases, which lets us measure error against ground truth exactly rather than
+against a numerical or experimental reference. Second, where
+\citet{farea2025qcpinn} report per-iteration time as one column among many
+and \citet{hqpinn2025flow} report it for only one of three benchmarks, we
+report wall-clock training time as a primary outcome for every scenario
+alongside accuracy, and find the quantum branch uniformly worse on both
+axes in all six -- a stronger and more consistent negative result than
+either prior paper's own (partially mixed) findings. Third, neither prior
+paper isolates circuit structure as an experimental variable with direct
+gradient measurement: \citet{farea2025qcpinn} discusses trainability
+differences between entangler choices (CRX/CRZ vs.\ fixed CNOT)
+qualitatively, and formally invokes barren plateaus only for its
+continuous-variable circuit, which is not the qubit-based design we build
+on; \citet{hqpinn2025flow} attributes reduced trainability in larger
+circuits to ``excessive expressibility'' based on final-loss curves, not a
+direct gradient-norm measurement. We instrument the circuit-only gradient
+norm directly across a controlled qubit-count/depth sweep, providing an
+empirical data point neither paper's diagnostic approach supplies.

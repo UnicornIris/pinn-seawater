@@ -1,0 +1,61 @@
+\subsection{Classical vs.\ quantum: main comparison}
+Table~\ref{tab:main-results} compares the classical and quantum branches
+across all six scenarios. The quantum branch is less accurate in every
+scenario (1.5--14.4$\times$ higher MAE) and substantially slower in every
+scenario (53--89$\times$ wall-clock time), with no scenario favoring the
+quantum branch on either axis.
+% Table auto-generated from qcpinn_results/20260712_035925/ -- rerun
+% tables/make_tables.py after any change to that CSV.
+\input{../paper/tables/main_results.tex}
+
+\todo{Add 1-2 representative solution/error plots here, e.g.
+\texttt{DE\_Dir\_FWD\_classical.png} vs \texttt{DE\_Dir\_FWD\_quantum.png}
+from qcpinn\_results/20260712\_035925/ (already on the graphicspath in
+main.tex), to show what the accuracy gap looks like spatially, not just in
+the aggregate MAE number.}
+
+\subsection{Ablation 1: training hyperparameters}
+The main comparison leaves open whether the quantum branch's
+underperformance reflects a suboptimal training recipe rather than a
+structural limitation. We test two candidates on two representative
+scenarios (Dirichlet-forward, Robin-inverse): a smaller weight
+initialization scale (\texttt{small\_init}) intended to keep VQC rotation
+angles away from regions with vanishing gradient, and a higher
+learning-rate floor (\texttt{slow\_decay}) intended to prevent premature
+convergence to a poor optimum. Table~\ref{tab:ablation1} shows neither
+closes the gap: \texttt{slow\_decay} is the worst of the three quantum
+configurations in both scenarios, and \texttt{small\_init} yields only a
+3--16\% MAE improvement over the untouched baseline -- far short of the
+3--14$\times$ gap to the classical branch.
+\input{../paper/tables/ablation1_summary.tex}
+
+\subsection{Ablation 2: circuit structure}
+Having ruled out these two hyperparameters, we next ask whether the circuit
+itself is the bottleneck -- either under-expressive (too few qubits/layers)
+or subject to a barren-plateau-like effect (gradients vanishing as the
+circuit grows). We sweep qubit count and depth independently around the
+baseline ($n{=}4, L{=}2$): \texttt{narrow} ($n{=}2$), \texttt{wide}
+($n{=}6$), \texttt{deep} ($L{=}4$), holding initialization and
+learning-rate schedule at the phase-1 baseline throughout. Alongside the
+usual accuracy metrics we log the circuit-only gradient norm at the end of
+training. Table~\ref{tab:ablation2} summarizes the result.
+\input{../paper/tables/ablation2_summary.tex}
+
+\todo{Add the ablation2\_accuracy.png / ablation2\_qgrad.png figures from
+qcpinn\_results/ablation2\_20260729\_225346/ here as a side-by-side, since
+the table alone makes the non-monotonic pattern harder to see than the
+plots do.}
+
+The pattern is mixed rather than clean. \texttt{wide} achieves the best
+accuracy among the quantum configurations in both scenarios, which would
+suggest expressivity is a limiting factor worth scaling past -- but it also
+has the \emph{smallest} final gradient norm of the four configurations,
+which is not the direction a pure expressivity story predicts and is only
+partially consistent with a barren-plateau account (which predicts smaller
+gradients accompanying \emph{worse}, not better, accuracy). \texttt{narrow}
+is the worst-performing configuration on accuracy, consistent with an
+under-expressivity explanation at the low end, while \texttt{deep} is worse
+than baseline on accuracy despite a comparable gradient norm. \todo{State
+explicitly in the text -- and defend in Discussion -- that this rules out a
+single clean explanation and motivates the more cautious framing adopted
+there (data encoding / ansatz choice as an unresolved third factor).}

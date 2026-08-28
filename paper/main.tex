@@ -1,0 +1,64 @@
+\documentclass[11pt]{article}
+
+% ---------------------------------------------------------------------------
+% Generic scaffold. Swap this preamble for a venue's official class/style
+% file once a target is chosen (e.g. arXiv, Quantum Machine Intelligence,
+% an IEEE QCE workshop template) -- everything below \begin{document} should
+% survive that swap mostly unchanged.
+% ---------------------------------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% Figures are read directly from the results directories that produced them
+% (no duplicated binaries in paper/) -- add new run directories here as needed.
+\graphicspath{%
+  {figures/}%
+  {../qcpinn_results/20260712_035925/}%
+  {../qcpinn_results/ablation_20260724_020639/}%
+  {../qcpinn_results/ablation2_20260729_225346/}%
+  {../pinn_results/20260625_161036/}%
+}
+
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{Do Variational Quantum Circuits Help Physics-Informed Neural Networks?\\
+A Systematic Ablation Study on a Diffusion PDE Benchmark}
+% TODO: finalize title with advisor -- see paper/README.md for alternatives.
+
+\author{\todo{author list} \\ \todo{affiliation}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+\input{sections/01_introduction}
+
+\section{Related Work}\label{sec:related}
+\input{sections/02_related_work}
+
+\section{Method}\label{sec:method}
+\input{sections/03_method}
+
+\section{Experiments}\label{sec:experiments}
+\input{sections/04_experiments}
+
+\section{Discussion}\label{sec:discussion}
+\input{sections/05_discussion}
+
+\section{Conclusion}\label{sec:conclusion}
+\input{sections/06_conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

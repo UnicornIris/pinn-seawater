@@ -1,0 +1,60 @@
+% TODO(zh): 这节需要你自己的语言组织，下面给出段落级骨架和每段该完成的任务。
+
+% Paragraph 1 -- PINN background and motivation for the specific PDE.
+Physics-informed neural networks \citep{raissi2019pinn} solve forward and
+inverse partial differential equation (PDE) problems by embedding the
+governing equation, boundary conditions, and (for inverse problems)
+observational data directly into the training loss of a neural network
+surrogate. \todo{One or two sentences motivating the seawater temperature
+diffusion equation specifically -- cite the paper you are replicating/
+extending (Han et al., 2026, Journal of Oceanology and Limnology) and state
+why it is a useful benchmark: closed-form analytical solutions exist for
+all three boundary-condition types, which makes ground-truth error
+measurable exactly rather than via a numerical reference solution.}
+
+% Paragraph 2 -- QML hype + hybrid quantum-classical PINNs as a response.
+\todo{Motivate interest in quantum machine learning for scientific
+computing in one or two sentences, then introduce the hybrid
+quantum-classical PINN (QCPINN/QPINN) line of work as the object of study.
+Keep this short -- the literature survey belongs in Related Work, not here.}
+
+% Paragraph 3 -- the gap / research questions.
+Despite growing enthusiasm for hybrid quantum-classical PINNs, we find that
+efficiency in this literature is reported almost exclusively via parameter
+count or number of training epochs, rarely via wall-clock time -- a
+distinction that matters because variational quantum circuits are, in the
+near term, executed via classical simulation whose per-step cost scales
+with circuit width and depth (see Section~\ref{sec:related}). This raises
+two questions that motivate the present study:
+\begin{itemize}
+  \item[\textbf{RQ1}] On a benchmark PDE with exact analytical solutions,
+    does a QCPINN built on a previously proposed circuit ansatz
+    \citep{farea2025qcpinn} match classical PINN accuracy once wall-clock
+    training time is accounted for, not just parameter count?
+  \item[\textbf{RQ2}] If it does not, is the gap attributable to
+    training hyperparameters (initialization, learning-rate schedule), or
+    to the quantum circuit's structure (expressivity or trainability)?
+\end{itemize}
+
+% Paragraph 4 -- contributions, stated as a list.
+We make the following contributions:
+\begin{itemize}
+  \item A controlled classical-vs-quantum comparison across six matched
+    scenarios (three boundary-condition types $\times$ forward/inverse),
+    with explicit wall-clock accounting alongside accuracy metrics
+    (Section~\ref{sec:experiments}).
+  \item A two-phase ablation that first rules out training hyperparameters
+    as the cause of the quantum branch's underperformance, then isolates
+    circuit structure (qubit count, depth) while directly measuring the
+    circuit-only gradient norm -- a diagnostic largely absent from prior
+    QCPINN evaluations, which infer trainability issues indirectly from
+    accuracy curves or rely on purely theoretical gradient-decay bounds
+    (Section~\ref{sec:experiments}).
+  \item A discussion of why our findings diverge from prior QCPINN results
+    obtained with a closely related circuit design, and what that implies
+    for how QCPINN efficiency should be reported going forward
+    (Section~\ref{sec:discussion}).
+\end{itemize}
+
+\todo{Close with a one-sentence roadmap of the paper's structure once the
+section numbers/titles are final.}

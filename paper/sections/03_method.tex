@@ -1,0 +1,84 @@
+\subsection{Problem setup}
+We consider the one-dimensional temperature diffusion equation
+\begin{equation}
+  \frac{\partial T}{\partial t} = k_z \frac{\partial^2 T}{\partial z^2},
+  \qquad z \in [0, 2],\ t \in [0, 5],
+\end{equation}
+with true diffusivity $k_z = 0.05$, following \citet{han2026seawater}.
+\todo{Confirm exact citation for Han et al. (2026), Journal of Oceanology
+and Limnology, and add it to references.bib.} We evaluate three boundary
+conditions, each with a closed-form analytical solution used as ground
+truth:
+\begin{itemize}
+  \item \textbf{Dirichlet}: $T = e^{-k_z(\pi/2)^2 t}\sin(\pi z/2) +
+    e^{-k_z \pi^2 t}\sin(\pi z)$.
+  \item \textbf{Neumann}: the corresponding cosine-series solution.
+  \item \textbf{Robin}: $\partial T/\partial z + T = 0$ at $z=0,2$; the
+    general-term solution follows \citet{han2026seawater}, Eq.~18.
+\end{itemize}
+For each boundary condition we solve both a \emph{forward} problem
+($k_z$ known, solve for $T$) and an \emph{inverse} problem ($k_z$ unknown,
+estimated jointly with $T$ from sparse observations), giving six scenarios
+in total.
+
+\subsection{Classical PINN}
+The classical baseline is a fully connected network mapping $(z, t) \mapsto
+T$: five hidden layers of 32 units with $\tanh$ activations, trained with
+L-BFGS. The loss combines the PDE residual, boundary-condition residual,
+and (for inverse problems) a data-fit term against sparse noisy
+observations; $k_z$ is a trainable scalar in the inverse case.
+\todo{State exact loss weighting, collocation point counts, and stopping
+criterion -- pull these from pinn\_seawater.py if they are not already
+summarized above.}
+
+\subsection{QCPINN}
+The quantum branch is inspired by, but not identical to, the qubit-based
+(discrete-variable) circuit family in \citet{farea2025qcpinn}. Inputs
+$(z,t)$ are linearly rescaled to $[-1,1]$ and encoded via
+\texttt{AngleEmbedding} (RX rotations) onto $n$ qubits, matching their
+angle-embedding scheme. Each of $L$ variational layers applies RZ-RX
+rotations on every qubit, a \emph{ring} of CNOT entangling gates (qubit $i$
+to qubit $(i+1) \bmod n$, wrapping from the last qubit back to the first),
+then a mirrored RX-RZ rotation layer; the circuit output is the vector of
+Pauli-$Z$ expectation values $\langle Z_i\rangle \in [-1,1]$, matching
+their readout. \citet{farea2025qcpinn} test four named topologies, none of
+which is exactly this combination: their \emph{Cascade} topology uses ring
+connectivity but continuously-tunable CRX gates rather than fixed CNOT,
+while their \emph{Alternate} and \emph{Layered} topologies use fixed CNOT
+but nearest-neighbor (not ring) connectivity. \todo{Decide how to frame
+this in the final text -- e.g.\ explicitly name it as a fifth,
+untested-in-their-sweep combination (``ring-CNOT''), rather than implying
+it \emph{is} one of their four.} This output is post-processed by a small
+classical head to produce $T$ (and, for inverse problems, $k_z$). Circuit
+parameters are simulated exactly (no shot noise, no hardware noise) via
+PennyLane's \texttt{default.qubit} device with the \texttt{backprop}
+differentiation method -- \citet{farea2025qcpinn} state they use the same
+shots-None/backprop configuration for their qubit-based circuits but do not
+print the specific simulator device string, so this match is inferred, not
+confirmed verbatim. The baseline configuration uses $n=4$ qubits and $L=2$
+layers; note this differs from the $n=5$, $L=1$ configuration
+\citet{farea2025qcpinn} found best after their own sweep -- Section
+\ref{sec:experiments} sweeps qubit count and depth independently around our
+own baseline, not theirs.
+
+\subsection{Training and evaluation}
+All experiments use PyTorch with fixed seeds (\todo{list the seed values
+used -- 0/1/2 per the CSV data}), 3 seeds per (scenario, configuration)
+pair. We report:
+\begin{itemize}
+  \item \textbf{MAE} and \textbf{relative $L_2$ error} against the
+    analytical solution on a held-out grid;
+  \item \textbf{PDE residual} at collocation points, as an
+    optimization-quality check independent of the analytical solution;
+  \item \textbf{$k_z$ estimation error} for inverse scenarios;
+  \item \textbf{Wall-clock training time}, measured on \todo{state
+    hardware: CPU model/cores used for all runs, since both branches were
+    run on CPU (see DEVICE = torch.device("cpu") in both scripts) -- note
+    this explicitly, since it affects how the wall-clock ratios should be
+    interpreted (a GPU-accelerated classical baseline would likely widen
+    the gap further, not narrow it)};
+  \item \textbf{Circuit-only gradient norm} (phase-2 ablation only): the
+    norm of the loss gradient with respect to the VQC parameters alone,
+    logged at the start and end of training, isolating circuit
+    trainability from the classical pre/post-processing layers.
+\end{itemize}
