@@ -5,8 +5,11 @@ We consider the one-dimensional temperature diffusion equation
   \qquad z \in [0, 2],\ t \in [0, 5],
 \end{equation}
 with true diffusivity $k_z = 0.05$, following \citet{han2026seawater}.
-\todo{Confirm exact citation for Han et al. (2026), Journal of Oceanology
-and Limnology, and add it to references.bib.} We evaluate three boundary
+% NOTE: han2026seawater in references.bib is still an empty stub -- I
+% cannot fabricate its author list, volume, or page numbers. This is the
+% one remaining reference that has to come from you/your advisor rather
+% than from a web search, since it's your own group's source paper.
+We evaluate three boundary
 conditions, each with a closed-form analytical solution used as ground
 truth:
 \begin{itemize}
@@ -23,13 +26,27 @@ in total.
 
 \subsection{Classical PINN}
 The classical baseline is a fully connected network mapping $(z, t) \mapsto
-T$: five hidden layers of 32 units with $\tanh$ activations, trained with
-L-BFGS. The loss combines the PDE residual, boundary-condition residual,
-and (for inverse problems) a data-fit term against sparse noisy
-observations; $k_z$ is a trainable scalar in the inverse case.
-\todo{State exact loss weighting, collocation point counts, and stopping
-criterion -- pull these from pinn\_seawater.py if they are not already
-summarized above.}
+T$: five hidden layers of 32 units with $\tanh$ activations. The loss
+combines the PDE residual, boundary-condition residual, and (for inverse
+problems) a data-fit term against sparse noisy observations; $k_z$ is a
+trainable scalar in the inverse case (parameterized as $\exp(\log k_z)$ for
+positivity). Training samples 2540 PDE-residual (collocation) points, 80
+boundary points (40 per side), and 160 initial-condition points, each
+redrawn uniformly at random per run; inverse scenarios additionally use 12
+noiseless observation points on a fixed $4\times 3$ $(z,t)$ grid. The loss
+term weights are $w_{bc}=w_{ic}=w_{data}=1$ throughout, and $w_{pde}=1$ for
+Dirichlet and Neumann scenarios; Robin scenarios use $w_{pde}=10$, since
+the gradient-dependent Robin boundary condition is harder to satisfy at
+$w_{pde}=1$ and needs the PDE residual up-weighted to converge (an
+asymmetry inherited from the original classical replication rather than
+introduced for this study). Training is two-phase: Adam ($\mathrm{lr}=
+10^{-3}$) for a fixed number of steps (5000 for Dirichlet/Neumann, 20000
+for Robin, matching the higher $w_{pde}$), followed by L-BFGS (strong-Wolfe
+line search, history size 100, $\mathrm{tolerance\_grad}=10^{-9}$,
+$\mathrm{tolerance\_change}=10^{-11}$, up to 10000 or 20000 iterations
+matching the Adam budget) until L-BFGS's own convergence tolerances are
+met or the iteration budget is exhausted, whichever comes first -- there
+is no early stopping based on held-out validation error.
 
 \subsection{QCPINN}
 The quantum branch is inspired by, but not identical to, the qubit-based
@@ -45,10 +62,11 @@ their readout. \citet{farea2025qcpinn} test four named topologies, none of
 which is exactly this combination: their \emph{Cascade} topology uses ring
 connectivity but continuously-tunable CRX gates rather than fixed CNOT,
 while their \emph{Alternate} and \emph{Layered} topologies use fixed CNOT
-but nearest-neighbor (not ring) connectivity. \todo{Decide how to frame
-this in the final text -- e.g.\ explicitly name it as a fifth,
-untested-in-their-sweep combination (``ring-CNOT''), rather than implying
-it \emph{is} one of their four.} This output is post-processed by a small
+but nearest-neighbor (not ring) connectivity. We therefore refer to our
+circuit as \emph{ring-CNOT}: a fifth ring-plus-fixed-entangler combination
+that is closest in spirit to their Cascade topology but was not itself
+among the four they swept, rather than an instance of any one of their
+named topologies. This output is post-processed by a small
 classical head to produce $T$ (and, for inverse problems, $k_z$). Circuit
 parameters are simulated exactly (no shot noise, no hardware noise) via
 PennyLane's \texttt{default.qubit} device with the \texttt{backprop}
@@ -59,24 +77,45 @@ confirmed verbatim. The baseline configuration uses $n=4$ qubits and $L=2$
 layers; note this differs from the $n=5$, $L=1$ configuration
 \citet{farea2025qcpinn} found best after their own sweep -- Section
 \ref{sec:experiments} sweeps qubit count and depth independently around our
-own baseline, not theirs.
+own baseline, not theirs. The quantum branch is trained differently from
+the classical one, not only architecturally but in optimizer choice: it
+never switches to L-BFGS -- each L-BFGS step would require multiple
+closure evaluations through the quantum circuit, which is too expensive
+per step -- and instead runs Adam throughout, for a step budget equal to
+the classical branch's combined Adam+L-BFGS budget (i.e.\ 15000 steps for
+Dirichlet/Neumann, 40000 for Robin), with cosine learning-rate decay from
+$10^{-3}$ to a floor $\eta_{\min}=10^{-5}$. This means the two branches
+differ in optimizer (first-order throughout vs.\ first-order then
+second-order) as well as in network type, a confound Section
+\ref{sec:experiments}'s phase-1 ablation partially addresses by varying
+$\eta_{\min}$ but does not eliminate -- both branches were given a matched
+total step/iteration budget, not a matched optimizer.
 
 \subsection{Training and evaluation}
-All experiments use PyTorch with fixed seeds (\todo{list the seed values
-used -- 0/1/2 per the CSV data}), 3 seeds per (scenario, configuration)
-pair. We report:
+All experiments use PyTorch with fixed seeds. Seeding differs by
+experiment: the main classical-vs-quantum comparison
+(Section~\ref{sec:experiments}, Table~\ref{tab:main-results}) uses a
+single seed (0) per scenario, so the reported numbers there are point
+estimates with no variance across runs; the phase-1 and phase-2 ablations
+each use 3 seeds (0, 1, 2) per (scenario, configuration) pair, and it is
+only for those that we report a mean and standard deviation. We return to
+what this asymmetry means for how the main comparison should be read in
+Section~\ref{sec:discussion}'s limitations. We report:
 \begin{itemize}
   \item \textbf{MAE} and \textbf{relative $L_2$ error} against the
     analytical solution on a held-out grid;
   \item \textbf{PDE residual} at collocation points, as an
     optimization-quality check independent of the analytical solution;
   \item \textbf{$k_z$ estimation error} for inverse scenarios;
-  \item \textbf{Wall-clock training time}, measured on \todo{state
-    hardware: CPU model/cores used for all runs, since both branches were
-    run on CPU (see DEVICE = torch.device("cpu") in both scripts) -- note
-    this explicitly, since it affects how the wall-clock ratios should be
-    interpreted (a GPU-accelerated classical baseline would likely widen
-    the gap further, not narrow it)};
+  \item \textbf{Wall-clock training time}, measured on an Apple M2 (8
+    cores, 16GB RAM), CPU only for both branches -- neither PyTorch nor
+    PennyLane was given GPU access, so the reported ratios are a CPU-only
+    comparison. This likely does not favor the classical branch
+    disproportionately: a GPU-accelerated classical network would train
+    faster still, which would widen rather than narrow the gap, whereas
+    the quantum branch's cost is dominated by classical simulation of the
+    circuit itself and would not benefit comparably from the same
+    hardware upgrade;
   \item \textbf{Circuit-only gradient norm} (phase-2 ablation only): the
     norm of the loss gradient with respect to the VQC parameters alone,
     logged at the start and end of training, isolating circuit

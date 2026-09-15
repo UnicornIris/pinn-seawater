@@ -8,11 +8,25 @@ quantum branch on either axis.
 % tables/make_tables.py after any change to that CSV.
 \input{../paper/tables/main_results.tex}
 
-\todo{Add 1-2 representative solution/error plots here, e.g.
-\texttt{DE\_Dir\_FWD\_classical.png} vs \texttt{DE\_Dir\_FWD\_quantum.png}
-from qcpinn\_results/20260712\_035925/ (already on the graphicspath in
-main.tex), to show what the accuracy gap looks like spatially, not just in
-the aggregate MAE number.}
+Figure~\ref{fig:dir-fwd-solution} shows this gap spatially for the
+Dirichlet-forward scenario: the classical solution tracks the analytical
+field closely across the full $(z,t)$ domain, while the quantum solution's
+larger error is visible directly rather than only as an aggregate number.
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{\linewidth}
+    \includegraphics[width=\linewidth]{DE_Dir_FWD_classical.png}
+    \caption{Classical}
+  \end{subfigure}
+  \begin{subfigure}{\linewidth}
+    \includegraphics[width=\linewidth]{DE_Dir_FWD_quantum.png}
+    \caption{Quantum}
+  \end{subfigure}
+  \caption{Predicted solution, analytical solution, and pointwise error for
+    the Dirichlet-forward scenario, classical (top) vs.\ quantum (bottom).}
+  \label{fig:dir-fwd-solution}
+\end{figure}
 
 \subsection{Ablation 1: training hyperparameters}
 The main comparison leaves open whether the quantum branch's
@@ -41,10 +55,26 @@ usual accuracy metrics we log the circuit-only gradient norm at the end of
 training. Table~\ref{tab:ablation2} summarizes the result.
 \input{../paper/tables/ablation2_summary.tex}
 
-\todo{Add the ablation2\_accuracy.png / ablation2\_qgrad.png figures from
-qcpinn\_results/ablation2\_20260729\_225346/ here as a side-by-side, since
-the table alone makes the non-monotonic pattern harder to see than the
-plots do.}
+Figure~\ref{fig:ablation2} shows the same pattern the table does, but makes
+the non-monotonicity easier to see at a glance.
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{\linewidth}
+    \includegraphics[width=\linewidth]{ablation2_accuracy.png}
+    \caption{MAE by configuration}
+  \end{subfigure}
+  \begin{subfigure}{\linewidth}
+    \includegraphics[width=\linewidth]{ablation2_qgrad.png}
+    \caption{Final circuit-only gradient norm by configuration}
+  \end{subfigure}
+  \caption{Phase-2 circuit-structure ablation: accuracy (top) and final
+    gradient norm (bottom) do not move together in the direction either a
+    pure expressivity or a pure barren-plateau account would predict --
+    \texttt{wide} has both the best accuracy and the smallest gradient norm
+    among the quantum configurations.}
+  \label{fig:ablation2}
+\end{figure}
 
 The pattern is mixed rather than clean. \texttt{wide} achieves the best
 accuracy among the quantum configurations in both scenarios, which would
@@ -55,7 +85,13 @@ partially consistent with a barren-plateau account (which predicts smaller
 gradients accompanying \emph{worse}, not better, accuracy). \texttt{narrow}
 is the worst-performing configuration on accuracy, consistent with an
 under-expressivity explanation at the low end, while \texttt{deep} is worse
-than baseline on accuracy despite a comparable gradient norm. \todo{State
-explicitly in the text -- and defend in Discussion -- that this rules out a
-single clean explanation and motivates the more cautious framing adopted
-there (data encoding / ansatz choice as an unresolved third factor).}
+than baseline on accuracy despite a comparable gradient norm. Taken
+together, no single one of these three configurations' results is
+consistent with the other two under either account on its own: an
+expressivity-limited story explains \texttt{narrow} but not \texttt{wide}'s
+small gradient norm, and a barren-plateau story explains \texttt{wide}'s
+small gradient norm but not its best-in-class accuracy. We therefore do not
+adopt either explanation as a conclusion; Section~\ref{sec:discussion}
+discusses what would be needed to adjudicate between them, and what other
+factor -- data encoding, ansatz choice -- the sweep as designed cannot
+rule in or out.

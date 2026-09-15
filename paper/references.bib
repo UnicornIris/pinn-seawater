@@ -28,6 +28,23 @@
   year    = {2018}
 }
 
+% Confirmed to exist via web search (title/authors/venue/DOI cross-checked
+% 2026-08-28); not read in full, but the abstract-level claim is precise
+% and narrow enough (a variance/gradient-magnitude bound, not a benchmark
+% claim) that the abstract-vs-full-text gap seen in the empirical QCPINN
+% papers above is much less likely to apply here.
+@article{holmes2022expressibility,
+  title   = {Connecting Ansatz Expressibility to Gradient Magnitudes and
+             Barren Plateaus},
+  author  = {Holmes, Zo{\"e} and Sharma, Kunal and Cerezo, M. and Coles,
+             Patrick J.},
+  journal = {PRX Quantum},
+  volume  = {3},
+  pages   = {010313},
+  year    = {2022},
+  doi     = {10.1103/PRXQuantum.3.010313}
+}
+
 @article{han2026seawater}
 % TODO: fill in -- this is the paper you are replicating/extending
 % (Han et al., 2026, Journal of Oceanology and Limnology). Get the exact
@@ -49,19 +66,40 @@
   note    = {Also available as arXiv:2503.16678}
 }
 
-@article{qcpinn2025reservoir}
-% TODO: verify -- "Quantum-Classical Physics-Informed Neural Networks for
-% Solving Reservoir Seepage Equations", arXiv:2512.03923. Author list not
-% confirmed; fetch from the arXiv abstract page before citing. NOT YET
-% verified against full text (only these three were read in the 2026-08-28
-% pass: farea2025qcpinn, hqpinn2025flow, and the redundant arXiv copy of
-% farea2025qcpinn).
+% Verified 2026-08-28 against the full text (downloaded from
+% arxiv.org/pdf/2512.03923; no journal banner or arXiv ID string is printed
+% in the PDF body itself, so the identifier is trusted from the URL, not
+% independently confirmed from the document). IMPORTANT: this is not an
+% independent replication -- the paper explicitly states its DV-circuit
+% QCPINN code "is developed based on the open-source code by Farea et al.
+% (2025)" -- same architecture lineage, different application domain and
+% author team. See 02_related_work.tex for how this is framed.
+@article{qcpinn2025reservoir,
+  title   = {Quantum-Classical Physics-Informed Neural Networks for Solving
+             Reservoir Seepage Equations},
+  author  = {Rao, Xiang and Liu, Yina and Shen, Yuxuan},
+  journal = {arXiv preprint arXiv:2512.03923},
+  year    = {2025}
+}
 
-@article{hqcpinn2026hydro}
-% TODO: verify -- "Variational Quantum Physics-Informed Neural Networks for
-% Hydrological PDE-Constrained Learning with Inherent Uncertainty
-% Quantification", arXiv:2604.09374. Author list not confirmed, not yet
-% read in full.
+% Verified 2026-08-30 against the full text (arXiv:2604.09374v2, 26 pages).
+% IMPORTANT: despite the title, this is NOT a PDE-solving PINN evaluated
+% against ground-truth solution error like the other three -- it is a
+% 4-class flood-severity classifier with PDE residuals used only as a loss
+% regularizer. Its "71.8% vs 69.4%" headline is classification accuracy,
+% not MAE/L2 error, and is not comparable to the other three papers' or our
+% own accuracy metric. See 02_related_work.tex for how this is framed --
+% deliberately brief and caveated, not woven in as a fourth equivalent data
+% point.
+@article{hqcpinn2026hydro,
+  title   = {Variational Quantum Physics-Informed Neural Networks for
+             Hydrological PDE-Constrained Learning with Inherent
+             Uncertainty Quantification},
+  author  = {Hewage, Prasad Nimantha Madusanka Ukwatta and
+             Chakkravarthy, Midhun and Abeysekara, Ruvan Kumara},
+  journal = {arXiv preprint arXiv:2604.09374},
+  year    = {2026}
+}
 
 % Verified 2026-08-28 against the full text (arXiv:2503.02202v2, 23 pages).
 @article{hqpinn2025flow,
@@ -76,11 +114,24 @@
              request; no public code repository listed.}
 }
 
-@article{qpinnmac2025}
-% TODO: verify -- "A Classical-Quantum Hybrid Architecture for
-% Physics-Informed Neural Networks" (QPINN-MAC), arXiv:2511.07216. Author
-% list not confirmed, not yet read in full. Recall: this one is purely
-% theoretical (no PDE experiments) per the earlier abstract-level search.
+% Verified 2026-08-30 against the full text (arXiv:2511.07216v1, 21 pages).
+% IMPORTANT caveats beyond "purely theoretical, no experiments" (which was
+% correct): (1) the architecture as formulated handles ODEs only -- Eq. (1)
+% is y^(1)=F(t,y), a single scalar input t (Fig. 1), not a PDE with
+% multiple independent variables like our (z,t) diffusion problem; (2) the
+% polynomial-decay rate O(1/sqrt(NN)) in Corollary 1 is derived by first
+% CHOOSING the target approximation tolerance to scale as 1/sqrt(NN) "to
+% guarantee efficiency" (Eq. 71) and then showing the gradient bound
+% matches that same rate -- this reads as circular/definitional rather
+% than an emergent property of the ansatz, and should be cited cautiously,
+% not as a settled result. See 02_related_work.tex for framing.
+@article{qpinnmac2025,
+  title   = {A Classical-Quantum Hybrid Architecture for Physics-Informed
+             Neural Networks},
+  author  = {Lantigua, Said and Giraldi, Gilson and Portugal, Renato},
+  journal = {arXiv preprint arXiv:2511.07216},
+  year    = {2025}
+}
 
 @article{qpinn2026fractional}
 % TODO: verify -- "Quantum Physics-Informed Neural Networks for Solving

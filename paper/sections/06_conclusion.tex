@@ -1,9 +1,24 @@
-\todo{One paragraph, no new citations. Suggested shape: (1) restate RQ1/RQ2
-and the one-line answer -- quantum branch underperforms on both accuracy
-and wall-clock cost across all six scenarios, and the gap survives
-hyperparameter tuning; (2) state the diagnostic finding from ablation 2
-honestly -- circuit structure matters but the effect does not cleanly
-match either an expressivity-limited or barren-plateau account; (3) end on
-the methodological point from the Discussion (wall-clock accounting) as
-the actionable takeaway for the field, since that is the contribution most
-likely to generalize beyond this specific PDE.}
+We set out to test whether a hybrid quantum-classical PINN built on a
+previously proposed circuit ansatz matches classical PINN performance on a
+benchmark diffusion PDE once wall-clock training time is accounted for
+alongside accuracy (RQ1), and, if not, whether the gap traces to training
+hyperparameters or to the quantum circuit's structure (RQ2). It does not
+match classical performance: across all six boundary-condition and
+forward/inverse scenarios, the quantum branch is both less accurate and
+53--89$\times$ slower in wall-clock time, and this gap survives targeted
+hyperparameter tuning of initialization scale and learning-rate schedule.
+A subsequent sweep of qubit count and circuit depth, instrumented with a
+direct measurement of the circuit-only gradient norm, shows that circuit
+structure does matter, but not in a way that cleanly fits either a pure
+expressivity-limited or a pure barren-plateau account -- the best-accuracy
+configuration in our sweep also has the smallest measured gradient norm,
+a pattern more consistent with the small-system-size end of the
+expressibility-gradient relationship of \citet{holmes2022expressibility}
+than with either account taken alone. Beyond this specific PDE, the
+methodological point we think most likely to generalize is the one
+developed in Section~\ref{sec:discussion}: efficiency claims for hybrid
+quantum-classical PINNs in the current literature are reported almost
+exclusively via parameter count or training epochs, and wall-clock time is
+absent or incomplete in every closely related paper we examined. Our own
+results show that accounting for it changes the practical picture, and we
+suggest it become standard practice for evaluating this class of model.

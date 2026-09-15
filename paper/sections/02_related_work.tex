@@ -71,35 +71,127 @@ wall-clock or per-iteration time is reported only for a subset of
 benchmarks in each paper (all five in \citealp{farea2025qcpinn}, only the
 hardest of three in \citealp{hqpinn2025flow}), which limits how directly
 either paper's timing claims generalize.
-\todo{Add hydrological \citep{hqcpinn2026hydro}, reservoir seepage
-\citep{qcpinn2025reservoir}, and the theoretical barren-plateau bound
-\citep{qpinnmac2025} once those are verified against full text -- see
-references.bib TODOs. Until then, do not restate the epoch-count /
-polynomial-gradient-bound claims for these three beyond what the earlier
-abstract-level search already summarized in chat, since that summary has
-not been checked against the full papers the way the two above have.}
 
-Our work differs from this pair of closely related studies in three ways.
-First, both restrict the quantum branch to forward, Dirichlet-type problems
-(\citealp{farea2025qcpinn} exclusively; \citealp{hqpinn2025flow} uses
-Dirichlet conditions throughout as well); we test both forward and inverse
-formulations across three boundary-condition types (Dirichlet, Neumann,
-Robin) on a single diffusion PDE with closed-form solutions in all six
-cases, which lets us measure error against ground truth exactly rather than
-against a numerical or experimental reference. Second, where
-\citet{farea2025qcpinn} report per-iteration time as one column among many
-and \citet{hqpinn2025flow} report it for only one of three benchmarks, we
-report wall-clock training time as a primary outcome for every scenario
+A third study applies the same qubit-based circuit family to a different
+application domain: \citet{qcpinn2025reservoir} solve four reservoir-
+engineering PDEs -- a linear pressure-diffusion equation, the nonlinear
+Buckley-Leverett saturation-front equation, a linear convection-diffusion-
+adsorption equation, and a fully coupled nonlinear two-phase pressure-
+saturation system -- with the same three named circuit topologies
+(Cascade, Cross-mesh, Alternate) as \citet{farea2025qcpinn}. This is not an
+independent replication: the authors state directly that their circuit
+implementation "is developed based on the open-source code by
+\citet{farea2025qcpinn}," reusing the same architecture skeleton for a new
+problem class rather than testing it from a separate implementation. Two
+findings distinguish this study's claim from the parameter-efficiency
+narrative associated with that lineage. First, parameter counts are
+deliberately matched rather than reduced (e.g.\ 273 classical vs.\
+279--283 quantum parameters in their simplest case) "to ensure fairness in
+the comparison" -- the reported accuracy gain is thus an equal-budget
+comparison, not a parameter-efficiency one, despite reusing the QCPINN
+label. Second, the advantage is not uniform across topologies or
+benchmarks: no single topology wins on all four PDEs, the authors
+themselves note the Cross-mesh topology "does not consistently yield
+superior results across all scenarios," and one benchmark's own figure
+shows a quantum configuration's error matching or exceeding the classical
+baseline's at a specific time step, even as the paper's overall framing is
+positive. All four benchmarks are forward-only with Dirichlet and
+Neumann-type (no-flow) boundary conditions -- no inverse problems, and no
+Robin conditions. Notably, wall-clock or per-iteration training time is
+not reported anywhere in this paper, not even as a partial column of the
+kind \citet{farea2025qcpinn} and \citet{hqpinn2025flow} include for some
+subset of their benchmarks -- the only acknowledgment of quantum
+simulation cost is a single qualitative sentence noting that "quantum
+simulation has inherent overhead on classical hardware," with no
+accompanying measurement.
+
+A fourth paper is worth a brief, separately-caveated mention rather than
+treatment as a fourth equivalent data point.
+\citet{hqcpinn2026hydro} propose a hybrid quantum-classical architecture,
+independently designed rather than built on \citet{farea2025qcpinn}'s
+implementation, and apply it to Sri Lankan flood data using the
+Saint-Venant shallow-water equations. Despite the framing, the underlying
+task is a four-class flood-severity \emph{classifier} with the PDE
+residual used only as a loss regularizer, not a solution field scored
+against ground truth -- so its headline ``71.8\% vs.\ 69.4\%'' comparison
+is classification accuracy, not a relative-error metric, and is not
+commensurable with the accuracy numbers reported by any of the other three
+papers or by our own study. The paper's own results table also
+contextualizes that comparison considerably: both physics-constrained
+models trail the same authors' non-physics classical baselines (random
+forest 90.3\%, Bayesian neural network 91.96\%) by roughly 20 points, sit
+below what a majority-class classifier would score given a 91\% class
+imbalance, and a transfer-learned variant of their own quantum model
+outperforms the flagship configuration being compared (73.6\% vs.\ 71.8\%).
+Like \citet{qcpinn2025reservoir}, this paper reports no wall-clock or
+per-iteration timing anywhere, so its claimed ``2.2--3.6$\times$ fewer
+epochs to converge'' cannot be checked against, and may not survive,
+real training-time accounting -- a fourth instance of the same reporting
+gap. Its barren-plateau-mitigation argument rests on a single gradient-
+variance measurement at one fixed qubit count rather than the scaling
+curve the underlying theory (which it does not connect to
+\citealp{holmes2022expressibility}) would need to substantiate.
+
+On the purely theoretical side, \citet{qpinnmac2025} propose a coupling
+scheme between classical and quantum branches and prove that, under it,
+the quantum-parameter gradient norm is bounded above by
+$\mathcal{O}(1/\sqrt{\mathcal{N}N})$ in circuit depth $\mathcal{N}$ and
+qubit count $N$ -- a polynomial rather than exponential decay -- with no
+PDE experiments of any kind (the paper's own conclusion lists
+``experimental validation on both ordinary and partial differential
+equations'' as future work). Two caveats limit how much weight this result
+can carry as context for our own findings. First, the architecture as
+formulated handles ordinary, not partial, differential equations: its
+network takes a single scalar input $t$, not the multiple independent
+variables (e.g.\ our $(z,t)$) a PDE requires. Second, the specific
+polynomial rate is obtained by first choosing the target approximation
+tolerance to scale as $1/\sqrt{\mathcal{N}N}$ and then showing the
+gradient bound matches that same rate, which reads as a property of that
+choice rather than an emergent, ansatz-intrinsic result -- we cite the
+qualitative conclusion (polynomial rather than exponential decay is
+achievable under some coupling schemes) rather than the specific rate.
+
+Our work differs from these four closely related studies in three ways.
+First, three of the four restrict the quantum branch to forward
+PDE-solving problems with Dirichlet and, at most, Neumann-type boundary
+conditions (\citealp{farea2025qcpinn} and \citealp{qcpinn2025reservoir}
+exclusively forward; \citealp{hqpinn2025flow} likewise), while the fourth
+\citep{hqcpinn2026hydro} is not a PDE-solving comparison at all in the
+sense used here; we test both forward and inverse formulations across
+three boundary-condition types (Dirichlet, Neumann, Robin) on a single
+diffusion PDE with closed-form solutions in all six cases, which lets us
+measure error against ground truth exactly rather than against a numerical
+or experimental reference, or a downstream classification label. Second,
+wall-clock accounting is inconsistent or absent across all four:
+\citet{farea2025qcpinn} report per-iteration time as one column among many,
+\citet{hqpinn2025flow} report it for only one of three benchmarks, and
+neither \citet{qcpinn2025reservoir} nor \citet{hqcpinn2026hydro} report any
+timing measurement at all despite the former explicitly acknowledging that
+simulation overhead exists and the latter reporting an epoch-count
+``speedup'' with no way to check whether it survives real-time accounting;
+we report wall-clock training time as a primary outcome for every scenario
 alongside accuracy, and find the quantum branch uniformly worse on both
-axes in all six -- a stronger and more consistent negative result than
-either prior paper's own (partially mixed) findings. Third, neither prior
-paper isolates circuit structure as an experimental variable with direct
-gradient measurement: \citet{farea2025qcpinn} discusses trainability
-differences between entangler choices (CRX/CRZ vs.\ fixed CNOT)
-qualitatively, and formally invokes barren plateaus only for its
-continuous-variable circuit, which is not the qubit-based design we build
-on; \citet{hqpinn2025flow} attributes reduced trainability in larger
-circuits to ``excessive expressibility'' based on final-loss curves, not a
-direct gradient-norm measurement. We instrument the circuit-only gradient
-norm directly across a controlled qubit-count/depth sweep, providing an
-empirical data point neither paper's diagnostic approach supplies.
+axes in all six -- a stronger and more consistent negative result than any
+prior paper's own (partially mixed, in the case of the first two) findings.
+Third, none of the four isolates circuit
+structure as an experimental variable with direct gradient measurement:
+\citet{farea2025qcpinn} discusses trainability differences between
+entangler choices (CRX/CRZ vs.\ fixed CNOT) qualitatively, and formally
+invokes barren plateaus only for its continuous-variable circuit, which is
+not the qubit-based design we build on; \citet{hqpinn2025flow} attributes
+reduced trainability in larger circuits to ``excessive expressibility''
+based on final-loss curves; \citet{qcpinn2025reservoir} offers only
+qualitative loss-curve comparisons and explicitly disclaims any causal
+circuit-selection rule; \citet{hqcpinn2026hydro} offers a single gradient-
+variance measurement at one fixed qubit count rather than the
+qubit-count-scaling curve its own theoretical claim would need. We
+instrument the circuit-only gradient norm directly across a controlled
+qubit-count/depth sweep, providing an empirical data point none of the
+four papers' diagnostic approaches supplies. We also note, for framing
+rather than as a fourth point of contrast, that
+\citeauthor{qcpinn2025reservoir}'s study is a direct architectural
+descendant of \citeauthor{farea2025qcpinn}'s open-source implementation
+rather than an independent replication; the convergent finding across it
+and \citet{hqpinn2025flow} -- that a quantum branch's advantage, where
+present, is topology- or regime-dependent rather than uniform -- is
+nonetheless drawn from two separate author teams and problem domains.

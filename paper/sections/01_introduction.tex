@@ -1,22 +1,42 @@
 % TODO(zh): 这节需要你自己的语言组织，下面给出段落级骨架和每段该完成的任务。
 
 % Paragraph 1 -- PINN background and motivation for the specific PDE.
-Physics-informed neural networks \citep{raissi2019pinn} solve forward and
-inverse partial differential equation (PDE) problems by embedding the
-governing equation, boundary conditions, and (for inverse problems)
-observational data directly into the training loss of a neural network
-surrogate. \todo{One or two sentences motivating the seawater temperature
-diffusion equation specifically -- cite the paper you are replicating/
-extending (Han et al., 2026, Journal of Oceanology and Limnology) and state
-why it is a useful benchmark: closed-form analytical solutions exist for
-all three boundary-condition types, which makes ground-truth error
-measurable exactly rather than via a numerical reference solution.}
+One-dimensional temperature diffusion is not only an ocean-scale
+phenomenon: the same governing equation describes heat transport in
+engineered water bodies such as swimming pools, where heating and cooling
+account for a significant share of operating energy costs, and a fast,
+differentiable surrogate for the temperature field is potentially useful
+for energy-aware control. Physics-informed neural networks (PINNs)
+\citep{raissi2019pinn} solve forward and inverse partial differential
+equation (PDE) problems of exactly this kind by embedding the governing
+equation, boundary conditions, and (for inverse problems) observational
+data directly into the training loss of a neural network surrogate. We
+study this class of problem through a specific, well-characterized
+instance: the seawater temperature diffusion equation of
+\citet{han2026seawater}, under Dirichlet, Neumann, and Robin boundary
+conditions, in both forward (diffusivity known) and inverse (diffusivity
+estimated from sparse data) form. This equation is a useful benchmark
+precisely because closed-form analytical solutions exist for all three
+boundary-condition types, which lets us measure error against ground
+truth exactly rather than against a numerical reference solution -- a
+property we rely on throughout this paper and return to in
+Section~\ref{sec:method}.
 
 % Paragraph 2 -- QML hype + hybrid quantum-classical PINNs as a response.
-\todo{Motivate interest in quantum machine learning for scientific
-computing in one or two sentences, then introduce the hybrid
-quantum-classical PINN (QCPINN/QPINN) line of work as the object of study.
-Keep this short -- the literature survey belongs in Related Work, not here.}
+Quantum machine learning (QML) has, in recent years, pushed to connect
+itself to problems beyond textbook physics -- optimization, materials
+discovery, and increasingly scientific and engineering simulation of
+exactly the kind PINNs target. Hybrid quantum-classical PINNs
+(QCPINN/QPINN), which replace part of the classical network with a
+variational quantum circuit, are the concrete form this push has taken
+for PDE-constrained learning: recent work reports that such hybrids match
+or exceed classical PINN accuracy while using a fraction of the trainable
+parameters \citep{farea2025qcpinn}. If this line of work is to matter for
+applied surrogate-modeling settings like the energy-management example
+above, rather than only for problems chosen because they are convenient
+for a quantum circuit to represent, it needs to be evaluated with the
+same accounting for training cost that a practical deployment would
+require -- not accuracy or parameter count alone.
 
 % Paragraph 3 -- the gap / research questions.
 Despite growing enthusiasm for hybrid quantum-classical PINNs, we find that
@@ -56,5 +76,10 @@ We make the following contributions:
     (Section~\ref{sec:discussion}).
 \end{itemize}
 
-\todo{Close with a one-sentence roadmap of the paper's structure once the
-section numbers/titles are final.}
+The remainder of the paper is organized as follows: Section~\ref{sec:related}
+surveys prior QCPINN work in detail; Section~\ref{sec:method} describes the
+PDE, the classical and quantum architectures, and the training and
+evaluation protocol; Section~\ref{sec:experiments} presents the main
+classical-vs-quantum comparison and the two-phase ablation;
+Section~\ref{sec:discussion} interprets these results against prior work
+and states limitations; Section~\ref{sec:conclusion} concludes.

@@ -16,60 +16,114 @@
 %     same architecture family.
 
 \subsection{Prior positive results are narrower than they first appear}
-\todo{Lead with the corrected framing: neither \citet{farea2025qcpinn} nor
-\citet{hqpinn2025flow} is a uniform "quantum wins" result once you read
-past the abstract -- both contain within-paper negative cases (cavity and
-wave for the former; non-harmonic and transonic for the latter). Frame
-your six-scenario result not as contradicting these papers but as a more
-consistent, more uniform version of a pattern they already show in part:
-where they find a mix depending on PDE/regime, you find the quantum branch
-losing on every single one of six matched scenarios on a problem family
-(diffusion, three BC types, forward and inverse) neither paper tests at
-all -- both restrict to forward, Dirichlet-only problems.}
+None of \citet{farea2025qcpinn}, \citet{hqpinn2025flow}, or
+\citet{qcpinn2025reservoir} is a uniform "quantum wins" result once read
+past the abstract: all three contain within-paper negative or mixed cases
+-- cavity flow and the wave equation for the first, non-harmonic and
+transonic regimes for the second, no circuit topology winning across all
+four benchmarks (plus an explicit disclaimer against causal claims) for
+the third. We read our six-scenario result not as contradicting these
+papers but as a more consistent, more uniform version of a pattern they
+already show in part: where they find a mix depending on PDE, regime, or
+topology, we find the quantum branch losing on every single one of six
+matched scenarios on a problem family -- a diffusion equation under three
+boundary-condition types, in both forward and inverse form -- that none of
+the three tests at all: all three restrict to forward problems with
+Dirichlet (and, in one case, additionally Neumann) conditions, and none
+includes an inverse/parameter-estimation variant. It is also worth being
+precise about how much independent weight \citet{qcpinn2025reservoir}
+carries: it is not an arms-length third data point, since it explicitly
+reuses \citeauthor{farea2025qcpinn}'s open-source implementation for a new
+PDE domain. Its convergence with \citet{hqpinn2025flow} on the qualitative
+claim that a quantum branch's advantage is regime- or topology-dependent
+rather than uniform therefore reflects two independent author teams
+agreeing on that shape, not three independent confirmations of any
+specific number.
 
 \subsection{Wall-clock accounting: sharper than the literature, but comparable}
-\todo{State plainly: \citet{farea2025qcpinn} report per-iteration time
-(15--40x slower than classical, across all five of their benchmarks) and
+\citet{farea2025qcpinn} report per-iteration time (15--40$\times$ slower
+than classical, across all five of their benchmarks) and
 \citet{hqpinn2025flow} report per-epoch time for one of their three
-benchmarks (17--82x, which they themselves round to "up to 100x"). Your
-own 53--89x wall-clock ratio is in the same direction and a similar order
-of magnitude, not a qualitatively new finding -- but you measure it as a
-primary outcome across all six of your scenarios rather than a secondary
-column reported for some subset of benchmarks. Discuss plausible sources
-for why your ratio runs somewhat higher than Farea's 15--40x: their best
-configuration uses only 5 qubits and 1 layer, smaller than your 4-qubit,
-2-layer baseline (and your ablation sweeps up to 6 qubits / 4 layers,
-which should be commensurately slower still); neither paper states enough
-hardware detail (Farea: a 6148-CPU/192GB cluster node; the flow paper:
-"distributed CPU, no GPU," no further spec) to rule out a hardware
-difference as a contributing factor -- note this explicitly as a limit on
-how precisely the ratios can be compared across papers, not just within
-your own results.}
+benchmarks (17--82$\times$, which they themselves round to "up to
+100$\times$"). \citet{qcpinn2025reservoir} and \citet{hqcpinn2026hydro} sit
+at the far end of this spectrum: the former runs on a fully specified CPU
+(two Intel Xeon E5-2680 v4, 28 cores, 128GB RAM) and explicitly
+acknowledges in prose that "quantum simulation has inherent overhead on
+classical hardware," yet reports no timing measurement whatsoever; the
+latter reports an epoch-count "speedup" (fewer epochs to reach a
+validation-loss threshold) without ever mentioning wall-clock cost at all,
+despite using parameter-shift-rule gradients -- known to require multiple
+extra circuit evaluations per step relative to backprop -- which makes an
+epoch-count comparison an especially weak proxy for real training cost in
+that specific case. Two of four closely related papers reporting zero
+timing data, and a third reporting it for only one of three benchmarks, is
+itself worth stating as a field-wide pattern rather than a coincidence
+across independent author teams. Our own 53--89$\times$ wall-clock ratio is
+in the same direction as the two papers that do measure it, and a similar
+order of magnitude -- not a qualitatively new finding -- but we measure it
+as a primary outcome across all six of our scenarios rather than as a
+secondary column reported for some subset of benchmarks, or omitted
+entirely. Our ratio runs somewhat higher than Farea et al.'s 15--40$\times$;
+one plausible source is circuit size, since their best-performing
+configuration uses only 5 qubits and 1 layer, smaller than our 4-qubit,
+2-layer baseline (and our own ablation sweeps up to 6 qubits and 4 layers,
+which should be commensurately slower still). However, none of the three
+papers states enough hardware detail to rule out a hardware difference as
+a contributing factor instead or in addition -- Farea et al.\ report a
+6148-CPU, 192GB cluster node; the flow paper reports only "distributed
+CPU, no GPU"; the reservoir paper specifies its CPU but has no timing to
+compare against at all -- so this is a limit on how precisely wall-clock
+ratios can be compared \emph{across} papers, not only a feature of our own
+results.
 
 \subsection{A smooth problem that still loses -- and why "barren plateau" needs care}
-\todo{\citet{hqpinn2025flow}'s central thesis is that harmonicity of the
-target solution predicts whether the quantum branch helps, not problem
-difficulty in general -- your diffusion PDE has closed-form sine/cosine
-solutions, i.e.\ it sits on the "harmonic" side of their distinction, yet
-your quantum branch loses in all six scenarios including the smoothest
-ones. This is a genuine point of tension worth naming directly: either the
-harmonic/non-harmonic axis from a compressible-flow Fourier-series argument
-doesn't transfer to a diffusion PDE encoded via AngleEmbedding, or some
-other factor in your setup (data encoding, ring-CNOT vs.\ their tunable
-CRX/CRZ entanglers -- see Method's ansatz-identity caveat, optimizer choice)
-is the actual confound. Be careful with terminology here: neither prior
-paper's account of trainability loss for the circuit family closest to
-yours uses "barren plateau" -- \citet{hqpinn2025flow} calls it "excessive
-expressibility" (based on final-loss curves, not a direct gradient
-measurement); \citet{farea2025qcpinn} does use "barren plateau" explicitly,
+\citet{hqpinn2025flow}'s central thesis is that harmonicity of the target
+solution predicts whether the quantum branch helps, not problem difficulty
+in general. Our diffusion PDE has closed-form sine/cosine solutions and so
+sits on the "harmonic" side of their distinction, yet our quantum branch
+loses in all six scenarios, including the smoothest ones. This is a
+genuine point of tension worth naming directly: either the
+harmonic/non-harmonic axis from their compressible-flow, Fourier-series
+argument does not transfer to a diffusion PDE encoded via AngleEmbedding,
+or some other factor in our setup -- data encoding, our ring-CNOT ansatz
+versus their tunable CRX/CRZ entanglers (Section~\ref{sec:method}), or
+optimizer choice -- is the actual confound; our results cannot distinguish
+between these. We are also careful with terminology here, since neither
+prior paper's account of trainability loss for the circuit family closest
+to ours uses "barren plateau": \citet{hqpinn2025flow} calls it "excessive
+expressibility," based on final-loss curves rather than a direct gradient
+measurement, and \citet{farea2025qcpinn} uses "barren plateau" explicitly
 but only for its continuous-variable (qumode) circuits, a different
-paradigm from the qubit-based ansatz both they and you actually build on.
-Your own phase-2 gradient-norm measurement (Section~\ref{sec:experiments})
-is, as far as this literature review found, the only \emph{direct}
-circuit-only gradient measurement across a qubit-count/depth sweep for a
-qubit-based hybrid PINN -- state this as the contribution, but also state
-plainly (as already drafted in Section~\ref{sec:experiments}) that your own
-numbers don't cleanly resolve the question either.}
+paradigm from the qubit-based ansatz both they and we build on. Our own
+phase-2 gradient-norm measurement (Section~\ref{sec:experiments}) is, as
+far as this literature review found, the only \emph{direct} circuit-only
+gradient measurement across a qubit-count/depth sweep for a qubit-based
+hybrid PINN. We offer this as a contribution, but state plainly, as
+already noted in Section~\ref{sec:experiments}, that our own numbers do
+not cleanly resolve the underlying question either.
+
+One theoretical result changes how that non-resolution should be framed,
+though: \citet{holmes2022expressibility} show that gradient magnitude and
+ansatz expressibility are not independent, competing explanations but two
+faces of the same relationship -- more expressive ansätze induce flatter
+cost landscapes and correspondingly smaller typical gradients. Read
+through that lens, \texttt{wide} having both the best accuracy \emph{and}
+the smallest final gradient norm among your four quantum configurations is
+not the contradiction it looks like under a naive "expressivity good,
+vanishing gradient bad" framing -- it is closer to what
+\citet{holmes2022expressibility}'s bound would predict for a more
+expressive circuit that has not yet entered a true (exponential,
+system-size-dependent) barren plateau: still trainable, but with a flatter
+landscape than \texttt{narrow} or \texttt{baseline}. We stop short of
+calling this a confirmed barren plateau, however: our qubit-count range
+(2--6) is almost certainly too small for the asymptotic, exponential-decay
+regime that the barren-plateau literature
+\citep{mcclean2018barren,holmes2022expressibility} actually characterizes.
+What our sweep shows is consistent with the small-system-size end of the
+expressibility-gradient relationship those results describe -- a flatter
+but still-trainable landscape as the circuit widens -- not evidence for or
+against an eventual barren plateau at larger qubit counts, which our range
+cannot distinguish from ordinary flattening.
 
 \subsection{Limitations}
 \begin{itemize}
@@ -80,22 +134,37 @@ numbers don't cleanly resolve the question either.}
     of their Cross-mesh circuit under a stated noise model is the closest
     precedent for what a hardware-realistic version of this comparison
     would need to account for.)
-  \item Both branches were run on CPU; \todo{state whether classical could
-    be GPU-accelerated in practice (it could) while the quantum branch
-    cannot escape classical simulation cost regardless of accelerator --
-    this asymmetry matters for how the wall-clock gap should be read
-    going forward, e.g.\ under future fault-tolerant hardware. Note also
-    that neither \citet{farea2025qcpinn} nor \citet{hqpinn2025flow} give
-    full hardware specs sufficient for a precise cross-paper timing
-    comparison -- flag this as a field-wide reporting gap, not just a
-    limitation of your own study.}
+  \item Both branches were run on CPU. This asymmetry is worth reading
+    carefully rather than at face value: the classical branch could in
+    practice be GPU-accelerated, which would shrink its training time
+    further, while the quantum branch's cost is dominated by classically
+    simulating the circuit and would not benefit comparably from the same
+    hardware -- so a GPU-enabled comparison would likely widen, not narrow,
+    the wall-clock gap reported here. Under future fault-tolerant quantum
+    hardware this asymmetry could of course reverse, but that is a
+    statement about hardware that does not yet exist, not about the
+    noiseless-simulator comparison in this paper. We also note that
+    neither \citet{farea2025qcpinn} nor \citet{hqpinn2025flow} give full
+    hardware specifications sufficient for a precise cross-paper timing
+    comparison -- a field-wide reporting gap, not a limitation specific to
+    our study.
   \item Single PDE family (linear diffusion, 3 BC types); results may not
     transfer to nonlinear or higher-dimensional PDEs, or to the
     discontinuous/shock-type solutions where \citet{hqpinn2025flow}
     independently find classical dominance for different reasons.
-  \item 3 seeds per (scenario, configuration); \todo{note here if you
-    decided to add more seeds per the earlier discussion, and adjust the
-    reported std/CI accordingly.}
+  \item The two ablations use 3 seeds per (scenario, configuration), but
+    the headline classical-vs-quantum comparison in
+    Table~\ref{tab:main-results} uses a single seed per scenario -- it is
+    the only result in the paper reported as a point estimate rather than
+    a mean $\pm$ std, and the largest-magnitude claims (the 53--89$\times$
+    wall-clock ratios) come from that single-seed table. This is a real
+    limitation rather than a disclosure formality: the ablations show
+    run-to-run standard deviations on the same order as some of the
+    effects being compared, so we cannot yet rule out that the main
+    comparison's specific ratios would shift, within their same broad
+    range, under a different seed. Multi-seed replication of
+    Table~\ref{tab:main-results} is the clearest concrete next step before
+    this result is submission-ready.
   \item Phase-2 ablation varies qubit count and depth but not entangler
     type (fixed CNOT throughout) or data-encoding scheme --
     \citet{farea2025qcpinn} suggest entangler tunability (CRX/CRZ vs.\
