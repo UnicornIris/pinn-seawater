@@ -1,0 +1,17 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Parameter count and time together.} \todo{Time cost per parameter saved, once the numbers are final.}
+
+\paragraph{Scope of the timing results.} The timings are for classical simulation of the circuits, not for
+quantum hardware. On hardware, gradients would be obtained with the parameter-shift rule and the cost model
+differs (Section~\ref{sec:bg-grads}).
+
+\paragraph{Limitations.}
+\begin{itemize}
+  \item A single PDE benchmark (1D diffusion) at small scale.
+  \item A single circuit ansatz~\cite{farea2025}.
+  \item Timings are tied to one measurement environment (Table~\ref{tab:env}); absolute multipliers, in
+  particular for \texttt{lightning.qubit}, may change with software versions.
+  \item \todo{Anything else a reviewer is likely to raise.}
+\end{itemize}

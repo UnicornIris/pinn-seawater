@@ -1,0 +1,48 @@
+\section{Results II: Hardware Timing}
+\label{sec:res-timing}
+\todo{Experiments are being finalised. Every number below is a placeholder; do not copy figures from the
+outline until they are re-verified against the CSVs in \texttt{results/timing\_profile/}.}
+
+\subsection{Per-configuration timing}
+\begin{table}[h]
+\centering
+\caption{Stage timing (ms, mean $\pm$ std over 3 seeds) and slowdown relative to the classical PINN.}
+\label{tab:timing}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Config & forward & first\_grad & second\_grad & forward vs.\ classical & second\_grad vs.\ classical \\
+\midrule
+classical & \tbd & \tbd & \tbd & 1.0$\times$ & 1.0$\times$ \\
+narrow    & \tbd & \tbd & \tbd & \tbd & \tbd \\
+baseline  & \tbd & \tbd & \tbd & \tbd & \tbd \\
+wide      & \tbd & \tbd & \tbd & \tbd & \tbd \\
+deep      & \tbd & \tbd & \tbd & \tbd & \tbd \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Second-order over forward ratio}
+\todo{Ratio second\_grad / forward per configuration; the claim to test is that the extra cost of
+second-order gradients grows with model size.}
+
+\subsection{Qubit sweep}
+\todo{Forward time vs.\ qubit count (2--12) on \texttt{default.qubit}; growth factor per added qubit
+against the $2\times$ expected from statevector doubling.}
+
+\subsection{Depth sweep}
+\todo{Layer sweep at 4 qubits, all stages (script: \texttt{qcpinn\_timing\_profile.py --only-layer-sweep}).}
+
+\subsection{Batch-size sweep}
+\todo{Forward time vs.\ batch size (100--5000), both backends.}
+
+\subsection{Backend comparison}
+\todo{\texttt{lightning.qubit} vs.\ \texttt{default.qubit}. The direction is opposite to the usual expectation;
+the current hypothesis is that \texttt{default.qubit} vectorises over the batch while \texttt{lightning.qubit}
+loops per sample, so its time grows linearly in batch size. State it as a hypothesis unless verified.}
+
+\begin{figure}[t]
+\centering
+\fbox{\parbox{0.9\linewidth}{\centering\vspace{3cm}\todo{timing figure: split \texttt{timing\_profile\_summary.png} into 3--4 subplots}\vspace{3cm}}}
+\caption{\todo{caption}}
+\label{fig:timing}
+\end{figure}

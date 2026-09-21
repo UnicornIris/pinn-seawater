@@ -475,7 +475,7 @@ def run_comparison(n_runs=5, n_qubits=6, n_qlayers=3):
     For each scenario and seed, trains both models and records metrics.
     """
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_dir = f"qcpinn_results/{timestamp}"
+    out_dir = f"results/accuracy/{timestamp}"
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"\nQCPINN Seawater Experiment")

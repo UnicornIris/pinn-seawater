@@ -1,0 +1,6 @@
+config,n_qubits,n_layers,quantum_params,classical_params,total_params,quantum_share
+classical,,,0,4353,4353,0.0
+narrow,2,2,16,2405,2421,0.660883932259397
+baseline,4,2,32,2537,2569,1.2456208641494744
+wide,6,2,48,2669,2717,1.7666543982333458
+deep,4,4,64,2537,2601,2.460592079969243

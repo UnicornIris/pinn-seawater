@@ -1,0 +1,27 @@
+\section{Results I: Parameter Count}
+\label{sec:res-params}
+
+Table~\ref{tab:params} breaks the parameter count of each configuration into its quantum and classical share.
+
+\begin{table}[h]
+\centering
+\caption{Parameter breakdown. Quantum share is in percent of the total.}
+\label{tab:params}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Config & Quantum & Classical & Total & Quantum share (\%) & Reduction vs.\ classical (\%) \\
+\midrule
+classical & 0  & 4353 & 4353 & 0.00 & --- \\
+narrow    & 16 & 2405 & 2421 & 0.66 & 44.4 \\
+baseline  & 32 & 2537 & 2569 & 1.25 & 41.0 \\
+wide      & 48 & 2669 & 2717 & 1.77 & 37.6 \\
+deep      & 64 & 2537 & 2601 & 2.46 & 40.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The quantum branch contributes only 16--64 parameters (0.7--2.5\% of the total). Nearly all of the reduction
+relative to the classical baseline therefore comes from the smaller classical part of the hybrid network
+(two $32\times32$ hidden layers instead of five), not from the circuit.
+\todo{Own paragraph: what this implies for the claim that quantum circuits are parameter-efficient.
+A fair control would be a purely classical network of the same size; say whether it is in scope.}
