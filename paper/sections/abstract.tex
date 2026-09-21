@@ -1,0 +1,14 @@
+% Write last. Three points only: parameter count, timing, takeaway.
+% Accuracy: at most one sentence saying it is not the subject of this paper.
+Hybrid quantum--classical physics-informed neural networks (QCPINNs) are usually
+reported as efficient because they use fewer trainable parameters than a classical PINN.
+We ask what this saving costs in wall-clock time.
+On a one-dimensional seawater temperature diffusion benchmark, we compare a classical PINN
+with four hybrid configurations that differ in qubit count and circuit depth.
+\emph{Parameter count:} the quantum branch adds only 16--64 trainable parameters, and the
+hybrids have 2421--2717 parameters in total against 4353 for the classical baseline
+(a 38--44\% reduction), almost all of which comes from the smaller classical part.
+\emph{Timing:} \todo{one sentence with the forward / first-order / second-order slowdown range,
+from final numbers} \tbd$\times$--\tbd$\times$, growing with qubit count, circuit depth and batch size.
+\emph{Takeaway:} parameter count alone overstates the efficiency of hybrid models.
+Accuracy is not the subject of this paper.

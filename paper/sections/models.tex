@@ -1,0 +1,56 @@
+\section{Model Architectures}
+\label{sec:models}
+
+\subsection{Classical baseline}
+The classical PINN is a fully connected network with five hidden layers of width 32 and $\tanh$
+activations, mapping $(z,t)\mapsto\Th$; it has 4353 trainable parameters.
+
+\subsection{Hybrid architecture}
+The hybrid network (Figure~\ref{fig:hybrid}) replaces the middle of the network with a VQC:
+a classical pre-processor $2\to32\to32\to n$ ($\tanh$ activations) maps the normalised input to $n$ features,
+the VQC returns $n$ Pauli-$Z$ expectation values, a learnable per-qubit scale is applied, and a classical
+post-processor $n\to32\to32\to1$ produces $\Th$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{hybrid_overview.pdf}
+\caption{Hybrid QCPINN: classical layers, quantum layer, classical layers.}
+\label{fig:hybrid}
+\end{figure}
+
+\paragraph{Circuit.} The features are encoded by angle embedding (one $R_X$ per qubit). Each of the $L$ layers
+applies $R_Z, R_X$ on every qubit, a ring of CNOT gates $i\to(i+1)\bmod n$, then $R_X, R_Z$ on every qubit,
+giving $4nL$ trainable quantum parameters. The output is $\langle Z_i\rangle$ for each qubit.
+The circuit follows the design of \citet{farea2025}. Gradients are obtained by backpropagation on the
+\texttt{default.qubit} simulator (PennyLane~\cite{bergholm2018}).
+
+\subsection{Configurations}
+\label{sec:configs}
+Table~\ref{tab:configs} lists the four hybrid configurations. \emph{Wide} increases the qubit count of the
+baseline from 4 to 6 at fixed depth; \emph{narrow} reduces it to 2; \emph{deep} keeps 4 qubits and doubles the
+depth to 4 layers. Figure~\ref{fig:circuits} shows an exemplar circuit for each.
+\todo{Confirm that ``deep'' = 4 qubits, 4 layers is what the paper should call deep.}
+
+\begin{table}[t]
+\centering
+\caption{Configurations. Quantum parameters are $4nL$; the classical share includes the $n$ learnable output scales.}
+\label{tab:configs}
+\begin{tabular}{@{}lccrrrr@{}}
+\toprule
+Config & Qubits $n$ & Layers $L$ & Quantum & Classical & Total & Ratio to classical \\
+\midrule
+classical & --- & --- & 0  & 4353 & 4353 & 1.00 \\
+narrow    & 2 & 2 & 16 & 2405 & 2421 & 0.56 \\
+baseline  & 4 & 2 & 32 & 2537 & 2569 & 0.59 \\
+wide      & 6 & 2 & 48 & 2669 & 2717 & 0.62 \\
+deep      & 4 & 4 & 64 & 2537 & 2601 & 0.60 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{circuits_compact.pdf}
+\caption{Exemplar circuits of the four hybrid configurations (narrow, baseline, wide, deep).}
+\label{fig:circuits}
+\end{figure}

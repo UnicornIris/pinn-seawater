@@ -1,0 +1,121 @@
+\section{Background and Key Concepts}
+\label{sec:background}
+
+\subsection{PINN loss structure}
+\label{sec:bg-loss}
+We consider the diffusion equation
+\begin{equation}
+  \frac{\partial T}{\partial t} \;=\; \kz\,\frac{\partial^2 T}{\partial z^2},
+  \qquad z\in[0,2],\ t\in[0,5],
+\end{equation}
+with diffusivity $\kz=0.05$ in forward problems and $\kz$ estimated from data in inverse problems.
+Let $\Th(z,t)$ be the network output with trainable parameters $\theta$ and input $x=(z,t)$.
+The PINN loss combines four mean-squared terms,
+\begin{equation}
+  \Lloss(\theta) \;=\; \Lloss_{\text{PDE}} + \Lloss_{\text{BC}} + \Lloss_{\text{IC}} + \Lloss_{\text{data}},
+\end{equation}
+namely the PDE residual at interior collocation points, the boundary-condition residual, the misfit to the initial
+condition, and, for inverse problems only, the misfit to observations; all terms have unit weight.
+
+\paragraph{Initial and boundary conditions.}
+Closed-form solutions exist for all three boundary-condition types. Table~\ref{tab:bc} lists the conditions
+imposed. The initial condition is the exact solution at $t=0$; for the Dirichlet problem the exact solution
+vanishes at both boundaries, so $\Lloss_{\text{BC}}$ penalises $\Th(0,t)$ and $\Th(2,t)$ directly. The Neumann and
+Robin conditions involve $\partial\Th/\partial z$ at the boundaries and therefore already require a first-order
+input gradient (Section~\ref{sec:bg-first}).
+
+\begin{table}[h]
+\centering
+\caption{Initial and boundary conditions of the three benchmark problems. Each boundary condition holds at
+$z=0$ and $z=2$ for all $t\in[0,5]$.}
+\label{tab:bc}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Type & Boundary condition & Initial condition $T(z,0)$ \\
+\midrule
+Dirichlet & $T=0$ & $\sin\frac{\pi z}{2}+\sin\pi z$ \\
+Neumann   & $\partial T/\partial z=0$ & $\cos\frac{\pi z}{2}+\cos\pi z$ \\
+Robin     & $\partial T/\partial z+T=0$ &
+  $e^{-z}+\frac{\pi}{2}\cos\frac{\pi z}{2}-\sin\frac{\pi z}{2}+\pi\cos\pi z-\sin\pi z$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Training points.}
+We sample $2540$ interior collocation points uniformly in $[0,2]\times[0,5]$, $40$ points on each of the two
+boundaries, and $160$ points at $t=0$. Inverse problems additionally use $12$ observations on a uniform
+$4\times3$ grid in $(z,t)$.
+
+\subsection{First-order input gradient}
+\label{sec:bg-first}
+The PDE residual is
+\begin{equation}
+  r_\theta(z,t) \;=\; \frac{\partial \Th}{\partial t} \;-\; \kz\,\frac{\partial^2 \Th}{\partial z^2}.
+\end{equation}
+Evaluating it requires the \emph{first-order gradient} of the output with respect to its input,
+$\nabla_x \Th = (\partial\Th/\partial z,\ \partial\Th/\partial t)$, which PINNs obtain by
+automatic differentiation of the network~\cite{raissi2019,lu2021deepxde,baydin2017}. It supplies the time derivative in $r_\theta$
+and the boundary residuals of the Neumann ($\partial\Th/\partial z = 0$) and Robin
+($\partial\Th/\partial z + \Th = 0$) problems.
+It must be distinguished from the \emph{parameter gradient} $\partial\Lloss/\partial\theta$ used by
+the optimiser, which is a further backward pass through the graph of the input gradients.
+
+\subsection{Second-order input gradient}
+\label{sec:bg-second}
+The diffusion term requires $\partial^2\Th/\partial z^2$, obtained by differentiating
+$\partial\Th/\partial z$ once more with respect to $z$. We compute both derivatives by reverse-mode
+automatic differentiation~\cite{baydin2017} in PyTorch~\cite{paszke2017autodiff}, retaining the computation
+graph after the first pass so that it can be differentiated again; differentiating through a gradient
+with respect to the input in this way is known as double backpropagation~\cite{drucker1992}. The second-order gradient therefore costs a second backward pass through the
+graph created by the first, on top of the forward pass and the first-order pass.
+
+\subsection{Variational quantum circuits}
+\label{sec:bg-vqc}
+A VQC acts on $n$ qubits and consists of an encoding of classical features into gate angles followed by
+$L$ layers of parametrised single-qubit rotations and entangling gates; its outputs are expectation values
+of observables~\cite{benedetti2019,cerezo2021}. The trainable quantum parameters are the rotation angles;
+$n$ is the \emph{width} and $L$ the \emph{depth} of the circuit. The encoding gates determine which functions
+of the input the circuit can represent~\cite{schuld2021encoding}; we use angle embedding
+(Section~\ref{sec:models}). VQCs are the model class of the noisy intermediate-scale quantum (NISQ)
+era~\cite{preskill2018}, but in practice they are mostly run on classical simulators, and so are ours; we do
+not use quantum hardware.
+A statevector simulator stores $2^n$ complex amplitudes and, in the worst case, applies each gate in
+$O(2^n)$ operations, so memory and time grow exponentially with $n$ and linearly with the number of gates,
+hence with the depth $L$~\cite{xu2023}.
+
+\subsection{How circuit gradients are obtained}
+\label{sec:bg-grads}
+On a classical simulator, as in our implementation, gradients are obtained by backpropagation: each backward
+pass traverses the operations that simulate the circuit, so the cost of every stage grows with the simulated
+circuit. On quantum hardware this is not possible, because intermediate quantum states cannot be measured and
+stored for reuse without destroying them~\cite{schuld2019}. Gradients of circuit outputs are instead obtained
+with the parameter-shift rule~\cite{mitarai2018,schuld2019}: for a gate generated by a Pauli operator, the
+derivative with respect to its angle is computed from two evaluations of the circuit with that angle shifted.
+Higher-order derivatives follow by iterating the rule, with up to $2^d$ shifted evaluations per derivative
+entry of order $d$ (four for the Hessian)~\cite{mari2021}. The same rule applies to the encoding gates,
+which gives derivatives of a quantum model with respect to its input~\cite{kyriienko2021}. In our hybrid network
+the circuit input is produced by classical layers, so input derivatives of the full network combine the chain
+rule through those layers with derivatives of the circuit.
+We measure the simulator case only and make no claim that simulator ratios carry over to hardware.
+
+\subsection{Notation}
+\begin{table}[h]
+\centering
+\caption{Notation and terminology.}
+\label{tab:notation}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Symbol / term & Meaning \\
+\midrule
+$x=(z,t)$ & network input: depth and time \\
+$\Th$ & network output, temperature, with parameters $\theta$ \\
+$\kz$ & thermal diffusivity \\
+$\nabla_x\Th$ & first-order input gradient \\
+$\partial^2\Th/\partial z^2$ & second-order input gradient \\
+$\partial\Lloss/\partial\theta$ & parameter gradient (optimiser; not a timed stage) \\
+$n$, $L$ & number of qubits (width), number of circuit layers (depth) \\
+forward / first\_grad / second\_grad & the three cumulative timed stages (Section~\ref{sec:setup}) \\
+\bottomrule
+\end{tabular}
+\end{table}

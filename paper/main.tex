@@ -1,0 +1,45 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,allcolors=blue!50!black]{hyperref}
+
+\graphicspath{{figures/}}
+
+% ---- placeholders --------------------------------------------------------
+% \todo{...}  : text still to be written / a fact still to be checked.
+% \tbd        : a number that comes from the (not yet final) experiments.
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\tbd}{\textcolor{red}{\textbf{--}}}
+
+% ---- notation ------------------------------------------------------------
+\newcommand{\Th}{\hat T_\theta}
+\newcommand{\kz}{k_z}
+\newcommand{\Lloss}{\mathcal{L}}
+
+\title{Cost of Hybrid Quantum PINNs: Parameter Count vs.\ Wall-Clock Time\\
+\large \todo{final title}}
+\author{\todo{author list}\\ \todo{affiliation}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/background}
+\input{sections/models}
+\input{sections/setup}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

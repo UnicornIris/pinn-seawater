@@ -1,0 +1,25 @@
+\section{Experimental Setup}
+\label{sec:setup}
+
+\subsection{Timed stages}
+We time three cumulative stages on the same batch of collocation points:
+\begin{enumerate}
+  \item \textbf{forward}: evaluate $\Th(x)$;
+  \item \textbf{first\_grad}: the forward pass plus $\nabla_x\Th$;
+  \item \textbf{second\_grad}: the forward pass, $\nabla_x\Th$ and $\partial^2\Th/\partial z^2$.
+\end{enumerate}
+The stages are cumulative, so the \emph{second-over-forward ratio} is the cost of everything needed for the
+PDE residual relative to a plain evaluation. The parameter gradient $\partial\Lloss/\partial\theta$ is not part
+of these stages, so a full training step costs more than the second\_grad time.
+\todo{Decide whether to keep this three-stage definition. The latest timing script also times a fourth
+stage, \texttt{param\_grad}, i.e.\ the optimiser's own backward pass; if it goes into the paper, update
+this subsection, Table~\ref{tab:notation} and Section~\ref{sec:bg-first}.}
+
+\subsection{Protocol}
+Each stage is timed over \todo{20} repetitions after \todo{3} warm-up calls, on a batch of \todo{2540}
+collocation points sampled uniformly in $[0,2]\times[0,5]$, matching the training batch size.
+Network weights, batch data and circuit parameters are redrawn for each of 3 independent seeds; we report the
+mean and the standard deviation across seeds. Backends are \texttt{default.qubit} (vectorised over the batch)
+and \texttt{lightning.qubit}.
+\todo{Confirm all numbers above against \texttt{qcpinn\_timing\_profile.py} (\texttt{N\_REPS}, \texttt{N\_WARMUP},
+\texttt{BATCH}, \texttt{SWEEP\_SEEDS}) before submission.}
