@@ -1,0 +1,26 @@
+{
+  "main": {
+    "seconds": 153.2,
+    "peak_rss_mb": null
+  },
+  "layer_sweep": {
+    "seconds": 132.8,
+    "peak_rss_mb": null
+  },
+  "batch_sweep": {
+    "seconds": 106.0,
+    "peak_rss_mb": null
+  },
+  "qubit_sweep": {
+    "seconds": 336.8,
+    "peak_rss_mb": null
+  },
+  "backend": {
+    "seconds": 533.1,
+    "peak_rss_mb": null
+  },
+  "drift_check": {
+    "seconds": 87.4,
+    "peak_rss_mb": null
+  }
+}
