@@ -4,23 +4,26 @@
 % --- Background (reuse from the previous version of the paper) ---
 Physics-informed neural networks (PINNs)~\cite{raissi2019} solve forward and inverse
 partial differential equation (PDE) problems by embedding the governing equation, boundary
-conditions and, for inverse problems, observations into the training loss of a neural network.
+conditions and, for inverse problems, observations into the neural network's training loss.
 We study a one-dimensional temperature diffusion problem, the seawater temperature equation of
 \citet{han2026}, under Dirichlet, Neumann and Robin boundary conditions.
-\todo{One or two sentences of application motivation, e.g.\ fast differentiable surrogates for
-energy-aware control of engineered water bodies (from the previous draft).}
+Fast, differentiable surrogates for this equation are attractive for energy-aware control of
+engineered water bodies, such as swimming pools or other managed basins, where a model that
+returns temperature and its gradients cheaply can drive heating, circulation or shading decisions
+in an optimal-control or model-predictive-control loop.
 
 Hybrid quantum--classical PINNs (QCPINNs), in which part of the network is replaced by a variational
 quantum circuit (VQC), have been reported to match or exceed classical PINNs while using far fewer
-trainable parameters~\cite{farea2025}. Parameter count has become the standard efficiency metric in
-this literature.
+trainable parameters~\cite{farea2025}. Parameter count has now become the standard efficiency metric
+in this literature.
 
 % --- Gap ---
-\paragraph{Gap.} Wall-clock cost is rarely the headline metric and, where it is reported, it is a single
-aggregate number (see Related work below). Yet near-term VQCs are executed by classical simulation, whose cost
-grows with circuit width and depth (Section~\ref{sec:background}). Training a PINN also needs first- and
-second-order derivatives of the network with respect to its \emph{inputs}, which are more expensive than a plain
-forward pass and interact with the simulated circuit.
+\paragraph{Gap.} Wall-clock cost is rarely the headline metric and, where it is reported, it is a
+single aggregate figure (see Related work below). Yet near-term VQCs are carried out using classical
+simulation, since its cost increases with circuit width and depth (Section~\ref{sec:background}).
+Training a PINN also requires first- and second-order derivatives of the network with respect to its
+\emph{inputs}, which are more expensive than a plain forward pass and interact with the simulated
+circuit.
 
 \paragraph{Research questions.}
 \begin{description}
@@ -36,12 +39,16 @@ forward pass and interact with the simulated circuit.
   accounting.
   \item Stage-wise timing of the forward pass, the first-order input gradient and the second-order
   input gradient.
-  \item Sweeps over qubit count, circuit depth, batch size and simulator backend.
+  \item A sweep of qubit count, circuit depth, batch size and simulator backend.
 \end{enumerate}
 Accuracy comparisons, gradient-norm ablations and barren-plateau discussion are not the subject of
 this paper.
 
-\paragraph{Outline.} \todo{One sentence per section once the structure is final.}
+\paragraph{Outline.} Section~\ref{sec:background} defines the PINN loss, the timed stages and the VQC basics
+used throughout; Section~\ref{sec:models} describes the classical baseline and the four hybrid configurations;
+Section~\ref{sec:setup} details the timing protocol and the size-matched classical controls. This draft covers
+the setup only -- the parameter-count and timing results, discussion and conclusion follow in later sections
+of the full paper.
 
 \paragraph{Related work.}
 Hybrid quantum PINNs have been proposed for fluid flow, wave, Helmholtz and Klein--Gordon
@@ -52,16 +59,14 @@ parameter count: QCPINNs are reported to reach comparable accuracy with 10--30\%
 PINN~\cite{farea2025}, hybrid models with fewer parameters than the best classical model~\cite{leong2025,trahan2024},
 and about 44\% fewer parameters together with roughly three times fewer training epochs~\cite{hewage2026}.
 
-Cost is acknowledged but usually reported as one aggregate figure. \citet{farea2025} report a 15- to 40-fold increase in
-time per training iteration relative to classical PINNs, at similar memory. \citet{leong2025} state that simulating the
-quantum layers imposes an overhead of at least two orders of magnitude for the same number of trainable parameters,
-but compare training efficiency through epochs rather than wall-clock time. \citet{trahan2024} find a quantum PINN to take
-nearly four times as long as a classical PINN with a similar number of parameters on a 2D Poisson problem.
+Cost is acknowledged but usually reported as one aggregate figure. \citet{farea2025} report an increase of 15- to
+40-fold in time per training iteration relative to classical PINNs, at similar memory. \citet{leong2025} state that
+simulating the quantum layers imposes an overhead of at least two orders of magnitude for the same number of
+trainable parameters, but compare training efficiency through epochs rather than wall-clock time. \citet{trahan2024}
+find a quantum PINN to take nearly four times as long as a classical PINN with a similar number of parameters on a
+2D Poisson problem.
 These figures differ widely and depend on hardware, simulator, circuit and batch size; none of them, to our
 knowledge, breaks the cost down into forward, first-order and second-order input-gradient stages, or varies qubit
 count, depth, batch size and backend in a controlled way. On the simulation side, \citet{chen2025} develop a
-GPU-accelerated simulation library for computing circuit outputs and their derivatives, so as to make QPINN training
-practical. This paper fills the gap with a controlled timing study next to the parameter count.
-\todo{Read the full texts of \cite{rao2025,lantigua2025,hewage2026,chen2025}; only their abstracts were checked. Confirm the
-``to our knowledge'' claim with a broader literature search, and check the journal version of \cite{leong2025}
-(Computers \& Fluids) for its own timing numbers.}
+GPU-accelerated simulation library for computing circuit outputs and their derivatives, to make QPINN training
+practical. This paper fills the gap with a controlled timing study alongside the parameter count.

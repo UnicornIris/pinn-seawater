@@ -23,6 +23,16 @@ Stages (cumulative, as in qcpinn_timing_profile.py):
   param_grad   second_grad's graph + PDE-residual loss + backward to the parameters
                (the optimiser's own backward pass; ~ the cost of one training step's PDE term)
 
+Quantum vs. classical split (hybrid cases only, `main`/`layer_sweep`/`batch_sweep`/`qubit_sweep`)
+  Forward-pre/post and full-backward-pre/post hooks on the net's QuantumLayer submodule bracket
+  the wall time spent inside the quantum circuit (forward evaluation and, when the stage takes a
+  gradient, the backward pass through it) during the very same call used for the `forward` /
+  `first_grad` / ... row. Each such call therefore also emits `<stage>_quantum` (time inside the
+  hooks) and `<stage>_classical` (the remainder: pre/postprocessor MLP + autograd bookkeeping
+  outside the hooked module) rows, so the two add back up to the original `<stage>` row for that
+  repetition. Classical-only cases (`classical`, `ctrl_*`) have no quantum component and get no
+  such rows.
+
 Measurement design
   * Cases are interleaved: in every round, each case (config x seed) is timed once, in a
     shuffled order, so slow drift of the machine (thermal throttling, background load) hits all
@@ -159,24 +169,62 @@ def circuit(x, params, n_qubits, n_layers):
     return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
 
 
+# ── quantum/classical split (hybrid cases only) ─────────────────────────────────────────────────
+class QuantumTimer:
+    """Wall time spent inside a QuantumLayer submodule's forward + backward, via module hooks.
+
+    Forward-pre/post hooks bracket the forward call; full-backward-pre/post hooks bracket the
+    backward pass through that module (fired once per `torch.autograd.grad`/`.backward()` call
+    that touches it, so second-order stages accumulate over both backward passes). Hooks are
+    plain wall-clock brackets around synchronous CPU ops, so nesting/ordering is not an issue.
+    """
+
+    def __init__(self, module):
+        self.total = 0.0
+        self._t_fwd = None
+        self._t_bwd = None
+        module.register_forward_pre_hook(self._fwd_pre)
+        module.register_forward_hook(self._fwd_post)
+        module.register_full_backward_pre_hook(self._bwd_pre)
+        module.register_full_backward_hook(self._bwd_post)
+
+    def _fwd_pre(self, module, inputs):
+        self._t_fwd = time.perf_counter()
+
+    def _fwd_post(self, module, inputs, output):
+        self.total += time.perf_counter() - self._t_fwd
+
+    def _bwd_pre(self, module, grad_output):
+        self._t_bwd = time.perf_counter()
+
+    def _bwd_post(self, module, grad_input, grad_output):
+        self.total += time.perf_counter() - self._t_bwd
+
+    def reset(self):
+        self.total = 0.0
+
+
 # ── cases ────────────────────────────────────────────────────────────────────────────────────
 class Case:
     """One thing to time: a set of zero-argument callables, one per stage."""
 
     def __init__(self, section, name, kind, seed, calls, backend="default.qubit",
-                 n_qubits="", n_layers="", batch="", n_params="", max_reps=None):
+                 n_qubits="", n_layers="", batch="", n_params="", max_reps=None,
+                 quantum_timer=None):
         self.section, self.name, self.kind, self.seed, self.calls = section, name, kind, seed, calls
         self.meta = dict(backend=backend, n_qubits=n_qubits, n_layers=n_layers, batch=batch,
                          n_params=n_params)
         self.max_reps = max_reps
         self.reps = 0
+        self.quantum_timer = quantum_timer
 
 
 def net_case(section, name, kind, seed, net, batch, stages, n_qubits="", n_layers=""):
     zt = make_batch(seed, batch)
     calls = {s: (lambda f=STAGE_FNS[s]: f(net, zt)) for s in stages}
+    timer = QuantumTimer(net.quantum) if kind == "hybrid" else None
     return Case(section, name, kind, seed, calls, n_qubits=n_qubits, n_layers=n_layers,
-                batch=batch, n_params=n_params(net))
+                batch=batch, n_params=n_params(net), quantum_timer=timer)
 
 
 def circuit_case(section, name, seed, backend, n_qubits, n_layers, batch, max_reps=None):
@@ -300,11 +348,20 @@ def run_section(section, cases, a, raw_path):
             for c in active:
                 gc.collect()
                 for stage, call in c.calls.items():
+                    if c.quantum_timer is not None:
+                        c.quantum_timer.reset()
                     t0 = time.perf_counter()
                     call()
                     dt = time.perf_counter() - t0
                     w.writerow(dict(section=section, case=c.name, kind=c.kind, seed=c.seed,
                                     stage=stage, rep=r, seconds=f"{dt:.9f}", **c.meta))
+                    if c.quantum_timer is not None:
+                        q = c.quantum_timer.total
+                        w.writerow(dict(section=section, case=c.name, kind=c.kind, seed=c.seed,
+                                        stage=f"{stage}_quantum", rep=r, seconds=f"{q:.9f}", **c.meta))
+                        w.writerow(dict(section=section, case=c.name, kind=c.kind, seed=c.seed,
+                                        stage=f"{stage}_classical", rep=r,
+                                        seconds=f"{max(dt - q, 0.0):.9f}", **c.meta))
             f.flush()
             print(f"  round {r + 1}/{n_rounds}  elapsed {time.time() - t_start:.0f}s", flush=True)
     return time.time() - t_start
@@ -481,6 +538,41 @@ def build_report(out_dir, stats, env, counts):
                       *[f"{s} vs matched control" for s in STAGES]], rows))
         L.append("Matched control = same classical layers, VQC replaced by tanh "
                  "(narrow -> ctrl_n2, baseline and deep -> ctrl_n4, wide -> ctrl_n6).\n")
+
+        if any(k[2].endswith("_quantum") for k in stats if k[0] == "main"):
+            L.append("### Quantum vs. classical component time\n")
+            L.append("Time inside the QuantumLayer submodule (forward + backward, via module "
+                     "hooks) vs. the rest of the hybrid net (pre/postprocessor MLP + autograd "
+                     "bookkeeping), for the same calls as the main table above.\n")
+            rows = []
+            for c in HYBRIDS:
+                cells = []
+                for stage in STAGES:
+                    tot, q = S("main", c, stage), S("main", c, f"{stage}_quantum")
+                    if tot and q:
+                        cells.append(f"{_fmt(q)} ({q['mean'] / tot['mean'] * 100:.0f}%)")
+                    else:
+                        cells.append("-")
+                rows.append([c, *cells])
+            L.append(_md(["config", *[f"{s} quantum (% of total)" for s in STAGES]], rows))
+
+    for section, prefix, xlabel, title in [
+            ("layer_sweep", "L", "n_layers", "Depth sweep"),
+            ("batch_sweep", "b", "batch", "Batch sweep"),
+            ("qubit_sweep", "q", "n_qubits", "Qubit sweep")]:
+        if any(k[0] == section and k[2].endswith("_quantum") for k in stats):
+            xs = sorted({int(k[1][len(prefix):]) for k in stats
+                        if k[0] == section and k[2].endswith("_quantum")})
+            rows = []
+            for x in xs:
+                case = f"{prefix}{x}"
+                cells = []
+                for stage in STAGES:
+                    tot, q = S(section, case, stage), S(section, case, f"{stage}_quantum")
+                    cells.append(f"{q['mean'] / tot['mean'] * 100:.0f}%" if tot and q else "-")
+                rows.append([x, *cells])
+            L.append(f"### {title}: quantum share of total time\n")
+            L.append(_md([xlabel, *STAGES], rows))
 
     def sweep(title, section, prefix, xs, xlabel, mode, unit):
         if not any(k[0] == section for k in stats):

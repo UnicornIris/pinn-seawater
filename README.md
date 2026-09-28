@@ -7,7 +7,7 @@ Paper direction: see `paper/outline.md`. Two core metrics: hardware timing profi
 | File | Role |
 |---|---|
 | `qcpinn_seawater.py` | Model definitions (`ClassicalDNN`, `HybridQNN`, `PINN`); imported by the others. Running it directly is the 6-scenario accuracy experiment. |
-| `qcpinn_timing_benchmark.py` | **Final timing run** (all stages x configs/sweeps/backend + size-matched controls, one process, environment recorded) -> `results/timing_benchmark/<tag>/`. Needs `qcpinn_seawater.py` and `requirements_benchmark.txt`. |
+| `qcpinn_timing_benchmark.py` | **Final timing run** (all stages x configs/sweeps/backend + size-matched controls, one process, environment recorded) -> `results/timing_benchmark/<tag>/`. Also splits each hybrid stage's time into quantum-circuit vs. classical-MLP share (module hooks on `HybridQNN.quantum`; `<stage>_quantum`/`<stage>_classical` rows). Needs `qcpinn_seawater.py` and `requirements_benchmark.txt`. |
 | `qcpinn_timing_profile.py` | Stage timing, backend comparison, qubit / batch / layer sweeps -> `results/timing_profile/<tag>/` |
 | `plot_timing_profile.py` | 2x2 summary figure from the newest `results/timing_profile/<tag>/` |
 | `qcpinn_parameter_count.py` | Parameter breakdown -> `results/parameter_count/<date>/` |

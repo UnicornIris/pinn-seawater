@@ -5,13 +5,18 @@
 \label{sec:bg-loss}
 We consider the diffusion equation
 \begin{equation}
+  \label{eq:pde}
   \frac{\partial T}{\partial t} \;=\; \kz\,\frac{\partial^2 T}{\partial z^2},
   \qquad z\in[0,2],\ t\in[0,5],
 \end{equation}
 with diffusivity $\kz=0.05$ in forward problems and $\kz$ estimated from data in inverse problems.
+Equation~\eqref{eq:pde} says how fast the temperature changes in \emph{time} (left) equals the diffusivity
+times its curvature in \emph{depth} (right); checking whether a network's prediction obeys it means computing
+the derivatives each side needs, which is what Section~\ref{sec:bg-stages} times.
 Let $\Th(z,t)$ be the network output with trainable parameters $\theta$ and input $x=(z,t)$.
 The PINN loss combines four mean-squared terms,
 \begin{equation}
+  \label{eq:loss}
   \Lloss(\theta) \;=\; \Lloss_{\text{PDE}} + \Lloss_{\text{BC}} + \Lloss_{\text{IC}} + \Lloss_{\text{data}},
 \end{equation}
 namely the PDE residual at interior collocation points, the boundary-condition residual, the misfit to the initial
@@ -47,6 +52,30 @@ We sample $2540$ interior collocation points uniformly in $[0,2]\times[0,5]$, $4
 boundaries, and $160$ points at $t=0$. Inverse problems additionally use $12$ observations on a uniform
 $4\times3$ grid in $(z,t)$.
 
+\subsection{Four cumulative stages}
+\label{sec:bg-stages}
+Training and evaluating a PINN involves four computations of increasing cost, each reusing the computation
+graph of the one before it. We name them here as they appear in the timing results (Section~\ref{sec:setup})
+and summarise their role before deriving each in detail below.
+\begin{description}
+  \item[forward] evaluates the network once, $\Th(z,t)$, with no derivatives at all -- the cost of using the
+  trained network to make a single prediction.
+  \item[first\_grad] additionally computes the \emph{first-order input gradient}
+  $\nabla_x\Th=(\partial\Th/\partial z,\ \partial\Th/\partial t)$ (Section~\ref{sec:bg-first}), needed for the
+  time-derivative term on the left of Eq.~\eqref{eq:pde} and for the Neumann and Robin boundary residuals.
+  \item[second\_grad] additionally computes the \emph{second-order input gradient} $\partial^2\Th/\partial z^2$
+  (Section~\ref{sec:bg-second}), the diffusion term on the right of Eq.~\eqref{eq:pde}. Only once this is
+  available can the PDE residual $r_\theta$ (below) be evaluated at all, so second\_grad is the cost of
+  \emph{checking} whether a prediction satisfies the governing equation.
+  \item[param\_grad] additionally computes the \emph{parameter gradient} $\partial\Lloss_{\text{PDE}}/\partial\theta$
+  (Section~\ref{sec:bg-param}), obtained by treating $r_\theta$ as part of the loss and backpropagating once
+  more, to the network's weights rather than to its input. Where the first three stages only check the
+  network, param\_grad is what the optimiser actually runs at every training step to \emph{correct} it.
+\end{description}
+Because the stages are cumulative, second\_grad already includes the work of forward and first\_grad; a ratio
+such as the second\_grad-to-forward ratio is therefore the cost of \emph{everything} the PDE residual needs,
+relative to a single plain prediction, not the cost of the second derivative in isolation.
+
 \subsection{First-order input gradient}
 \label{sec:bg-first}
 The PDE residual is
@@ -57,9 +86,10 @@ Evaluating it requires the \emph{first-order gradient} of the output with respec
 $\nabla_x \Th = (\partial\Th/\partial z,\ \partial\Th/\partial t)$, which PINNs obtain by
 automatic differentiation of the network~\cite{raissi2019,lu2021deepxde,baydin2017}. It supplies the time derivative in $r_\theta$
 and the boundary residuals of the Neumann ($\partial\Th/\partial z = 0$) and Robin
-($\partial\Th/\partial z + \Th = 0$) problems.
-It must be distinguished from the \emph{parameter gradient} $\partial\Lloss/\partial\theta$ used by
-the optimiser, which is a further backward pass through the graph of the input gradients.
+($\partial\Th/\partial z + \Th = 0$) problems. This is the \texttt{first\_grad} stage of
+Section~\ref{sec:bg-stages}. It must be distinguished from the \emph{parameter gradient}
+$\partial\Lloss/\partial\theta$ used by the optimiser (Section~\ref{sec:bg-param}), which is a further
+backward pass through the graph of the input gradients.
 
 \subsection{Second-order input gradient}
 \label{sec:bg-second}
@@ -68,7 +98,22 @@ $\partial\Th/\partial z$ once more with respect to $z$. We compute both derivati
 automatic differentiation~\cite{baydin2017} in PyTorch~\cite{paszke2017autodiff}, retaining the computation
 graph after the first pass so that it can be differentiated again; differentiating through a gradient
 with respect to the input in this way is known as double backpropagation~\cite{drucker1992}. The second-order gradient therefore costs a second backward pass through the
-graph created by the first, on top of the forward pass and the first-order pass.
+graph created by the first, on top of the forward pass and the first-order pass. This defines the
+\texttt{second\_grad} stage of Section~\ref{sec:bg-stages}: once it is available, $r_\theta$ can be formed and
+squared into $\Lloss_{\text{PDE}}$.
+
+\subsection{Parameter gradient}
+\label{sec:bg-param}
+Neither $\nabla_x\Th$ nor $\partial^2\Th/\partial z^2$ is what the optimiser uses to update the network: it needs
+the gradient of the loss with respect to the network's own trainable parameters, $\partial\Lloss/\partial\theta$.
+Restricting to the PDE term, $\Lloss_{\text{PDE}} = \tfrac1N\sum_i r_\theta(z_i,t_i)^2$, computing
+$\partial\Lloss_{\text{PDE}}/\partial\theta$ means backpropagating through $r_\theta$ itself -- through the
+graph already built for the first- and second-order input gradients -- one more time, to $\theta$ rather than
+to $x$. This is the \texttt{param\_grad} stage: approximately the cost of the PDE term in one optimiser step,
+and not to be confused with the \emph{input} gradients of Sections~\ref{sec:bg-first}--\ref{sec:bg-second},
+which check the network rather than update it. The boundary, initial-condition and (for inverse problems)
+data terms of $\Lloss$ in Eq.~\eqref{eq:loss} contribute further, cheaper backward passes of their own that we
+do not separately time, so a full training step costs somewhat more than param\_grad.
 
 \subsection{Variational quantum circuits}
 \label{sec:bg-vqc}
@@ -104,18 +149,19 @@ We measure the simulator case only and make no claim that simulator ratios carry
 \centering
 \caption{Notation and terminology.}
 \label{tab:notation}
-\begin{tabular}{@{}ll@{}}
+\small
+\begin{tabular}{@{}p{0.24\linewidth} p{0.68\linewidth}@{}}
 \toprule
 Symbol / term & Meaning \\
 \midrule
 $x=(z,t)$ & network input: depth and time \\
 $\Th$ & network output, temperature, with parameters $\theta$ \\
 $\kz$ & thermal diffusivity \\
-$\nabla_x\Th$ & first-order input gradient \\
-$\partial^2\Th/\partial z^2$ & second-order input gradient \\
-$\partial\Lloss/\partial\theta$ & parameter gradient (optimiser; not a timed stage) \\
+$\nabla_x\Th$ & first-order input gradient (\texttt{first\_grad} stage) \\
+$\partial^2\Th/\partial z^2$ & second-order input gradient (\texttt{second\_grad} stage) \\
+$\partial\Lloss_{\text{PDE}}/\partial\theta$ & parameter gradient (\texttt{param\_grad} stage; the optimiser's own backward pass) \\
 $n$, $L$ & number of qubits (width), number of circuit layers (depth) \\
-forward / first\_grad / second\_grad & the three cumulative timed stages (Section~\ref{sec:setup}) \\
+forward, first\_grad, second\_grad, param\_grad & the four cumulative timed stages (Sections~\ref{sec:bg-stages}, \ref{sec:setup}) \\
 \bottomrule
 \end{tabular}
 \end{table}
