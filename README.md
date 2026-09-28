@@ -16,7 +16,7 @@ Paper direction: see `paper/outline.md`. Two core metrics: hardware timing profi
 ## Data (`results/`)
 | Folder | Contents | Paper section |
 |---|---|---|
-| `timing_benchmark/<tag>/` | Final benchmark output: `report.md`, `summary.csv`, `raw/`, `env.json` | Results II |
+| `timing_benchmark/<tag>/` | Final benchmark output: `report.md`, `summary.csv`, `raw/`, `env.json`. Three independent full runs so far (`win_py314`, `win_py314_run2`, `win_py314_run3`); growth-rate fits agree within a few percent across all three, but the drift check has exceeded the 10% threshold in every run, so none should yet be treated as final (see `paper/sections/setup.tex`). | Results II |
 | `timing_profile/20260916/` | 3-seed stage / backend / qubit / batch sweeps (Py3.9, PennyLane 0.38); source of `summary_tables.md` | Results II |
 | `timing_profile/20260920/` | 3-seed stage / backend + layer sweep (with param-grad stage) | Results II |
 | `parameter_count/20260916/` | `parameter_count.csv` | Results I |
