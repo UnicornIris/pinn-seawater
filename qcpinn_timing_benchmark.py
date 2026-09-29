@@ -425,8 +425,9 @@ def env_info(a):
         info["cpu"] = platform.processor()
     info["gpu_used"] = False  # qcpinn_seawater.DEVICE is cpu
     here = os.path.dirname(os.path.abspath(__file__))
-    info["git_commit"] = _sh(f"git -C '{here}' rev-parse HEAD")
-    info["git_dirty"] = bool(_sh(f"git -C '{here}' status --porcelain"))
+    info["git_commit"] = _sh(f'git -C "{here}" rev-parse HEAD')  # double quotes: cmd.exe ignores single
+    status = _sh(f'git -C "{here}" status --porcelain')
+    info["git_dirty"] = None if status is None else bool(status)
     info["args"] = {k: v for k, v in vars(a).items()}
     return info
 
