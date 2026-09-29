@@ -1,0 +1,164 @@
+# Timing benchmark report
+
+Run folder: `results/timing_benchmark\win_py314_run6`. All times in ms; `mean ± std` = mean over seeds of the per-seed mean, and sample std (ddof=1) across seeds. Ratios use the means.
+
+## Environment
+
+| item | value |
+|---|---|
+| timestamp | 2026-09-29T09:57:29 |
+| platform | Windows-11-10.0.26200-SP0 |
+| cpu | Intel64 Family 6 Model 191 Stepping 2, GenuineIntel |
+| cpu_count_logical | 16 |
+| python | 3.14.3 |
+| torch | 2.11.0+cpu |
+| pennylane | 0.44.1 |
+| pennylane_lightning | 0.44.0 |
+| torch_threads | 10 |
+| git_commit | 014b371daf011a14194be71a90b9008e854bccd0 |
+| git_dirty | False |
+
+## Parameter counts
+
+| config | total | quantum |
+|---|---|---|
+| classical | 4353 | 0 |
+| narrow | 2421 | 16 |
+| baseline | 2569 | 32 |
+| wide | 2717 | 48 |
+| deep | 2601 | 64 |
+| ctrl_n2 | 2405 | 0 |
+| ctrl_n4 | 2537 | 0 |
+| ctrl_n6 | 2669 | 0 |
+
+## Main table (stages, batch = default)
+
+| config | params | forward | first_grad | second_grad | param_grad | second/forward | param/forward |
+|---|---|---|---|---|---|---|---|
+| classical | 4353 | 0.53 ± 0.01 | 0.95 ± 0.09 | 1.61 ± 0.01 | 4.06 ± 0.07 | 3.03 | 7.65 |
+| narrow | 2421 | 7.60 ± 0.13 | 11.25 ± 0.16 | 21.67 ± 0.45 | 42.15 ± 1.16 | 2.85 | 5.54 |
+| baseline | 2569 | 16.08 ± 0.60 | 30.44 ± 0.20 | 62.65 ± 0.84 | 126.4 ± 0.2 | 3.90 | 7.86 |
+| wide | 2717 | 29.88 ± 0.13 | 80.93 ± 1.62 | 153.7 ± 0.7 | 394.3 ± 6.2 | 5.14 | 13.20 |
+| deep | 2601 | 26.34 ± 0.47 | 52.54 ± 1.09 | 97.30 ± 1.06 | 203.7 ± 1.3 | 3.69 | 7.73 |
+| ctrl_n2 | 2405 | 0.70 ± 0.00 | 1.09 ± 0.03 | 1.90 ± 0.01 | 4.54 ± 0.04 | 2.73 | 6.51 |
+| ctrl_n4 | 2537 | 0.70 ± 0.01 | 1.11 ± 0.04 | 1.95 ± 0.02 | 4.58 ± 0.04 | 2.79 | 6.55 |
+| ctrl_n6 | 2669 | 0.71 ± 0.01 | 1.14 ± 0.01 | 2.01 ± 0.13 | 4.65 ± 0.07 | 2.84 | 6.56 |
+
+### Slowdown
+
+| config | forward vs classical | first_grad vs classical | second_grad vs classical | param_grad vs classical | forward vs matched control | first_grad vs matched control | second_grad vs matched control | param_grad vs matched control |
+|---|---|---|---|---|---|---|---|---|
+| narrow | 14.3x | 11.9x | 13.5x | 10.4x | 10.9x | 10.3x | 11.4x | 9.3x |
+| baseline | 30.3x | 32.1x | 38.9x | 31.1x | 23.0x | 27.4x | 32.1x | 27.6x |
+| wide | 56.3x | 85.4x | 95.5x | 97.1x | 42.2x | 70.7x | 76.4x | 84.9x |
+| deep | 49.7x | 55.5x | 60.5x | 50.2x | 37.7x | 47.3x | 49.8x | 44.4x |
+
+Matched control = same classical layers, VQC replaced by tanh (narrow -> ctrl_n2, baseline and deep -> ctrl_n4, wide -> ctrl_n6).
+
+### Quantum vs. classical component time
+
+Time inside the QuantumLayer submodule (forward + backward, via module hooks) vs. the rest of the hybrid net (pre/postprocessor MLP + autograd bookkeeping), for the same calls as the main table above.
+
+| config | forward quantum (% of total) | first_grad quantum (% of total) | second_grad quantum (% of total) | param_grad quantum (% of total) |
+|---|---|---|---|---|
+| narrow | 6.87 ± 0.12 (90%) | 9.65 ± 0.07 (86%) | 12.55 ± 0.11 (58%) | 18.41 ± 0.56 (44%) |
+| baseline | 15.28 ± 0.49 (95%) | 27.65 ± 0.40 (91%) | 40.90 ± 0.77 (65%) | 56.17 ± 0.27 (44%) |
+| wide | 29.11 ± 0.14 (97%) | 76.99 ± 1.51 (95%) | 100.9 ± 0.4 (66%) | 164.2 ± 1.7 (42%) |
+| deep | 25.58 ± 0.47 (97%) | 49.30 ± 1.02 (94%) | 66.67 ± 0.61 (69%) | 94.24 ± 0.72 (46%) |
+
+### Depth sweep: quantum share of total time
+
+| n_layers | forward | first_grad | second_grad | param_grad |
+|---|---|---|---|---|
+| 1 | 93% | 91% | 66% | 42% |
+| 2 | 95% | 88% | 67% | 44% |
+| 4 | 97% | 93% | 67% | 46% |
+| 8 | 98% | 95% | 69% | 48% |
+
+### Batch sweep: quantum share of total time
+
+| batch | forward | first_grad | second_grad | param_grad |
+|---|---|---|---|---|
+| 100 | 88% | 89% | 70% | 50% |
+| 500 | 88% | 90% | 69% | 49% |
+| 1000 | 95% | 91% | 67% | 46% |
+| 2540 | 95% | 91% | 66% | 45% |
+| 5000 | 95% | 93% | 65% | 42% |
+
+### Qubit sweep: quantum share of total time
+
+| n_qubits | forward | first_grad | second_grad | param_grad |
+|---|---|---|---|---|
+| 2 | 90% | 85% | 61% | 44% |
+| 4 | 95% | 89% | 66% | 45% |
+| 6 | 97% | 95% | 68% | 41% |
+| 8 | 99% | 91% | 65% | 38% |
+| 10 | 100% | - | - | - |
+| 12 | 100% | - | - | - |
+
+## Qubit sweep (2 layers)
+
+| n_qubits | forward | first_grad | second_grad | param_grad |
+|---|---|---|---|---|
+| 2 | 7.44 ± 0.09 | 12.89 ± 0.50 | 21.05 ± 0.49 | 41.09 ± 0.24 |
+| 4 | 16.20 ± 0.26 | 32.35 ± 0.34 | 62.77 ± 1.20 | 127.0 ± 0.6 |
+| 6 | 31.58 ± 0.28 | 81.43 ± 1.49 | 147.6 ± 0.5 | 386.1 ± 2.3 |
+| 8 | 121.5 ± 0.3 | 332.3 ± 3.0 | 778.8 ± 0.5 | 2229.5 ± 3.1 |
+| 10 | 681.6 ± 6.0 | - | - | - |
+| 12 | 3176.4 ± 5.2 | - | - | - |
+
+Fit per stage (forward, first_grad, second_grad, param_grad): 1.84x per added qubit (log2-linear fit), 1.71x per added qubit (log2-linear fit), 1.79x per added qubit (log2-linear fit), 1.92x per added qubit (log2-linear fit)
+
+## Depth sweep (4 qubits)
+
+| n_layers | forward | first_grad | second_grad | param_grad |
+|---|---|---|---|---|
+| 1 | 10.83 ± 0.11 | 19.27 ± 0.13 | 40.18 ± 0.30 | 86.73 ± 0.15 |
+| 2 | 15.91 ± 0.27 | 30.16 ± 0.88 | 61.32 ± 0.08 | 125.4 ± 1.2 |
+| 4 | 25.86 ± 0.52 | 49.04 ± 0.79 | 94.75 ± 0.55 | 201.8 ± 3.3 |
+| 8 | 45.42 ± 0.48 | 91.28 ± 1.05 | 161.7 ± 0.8 | 354.9 ± 2.1 |
+
+Fit per stage (forward, first_grad, second_grad, param_grad): 4.94 ms per added layer (linear fit), 10.24 ms per added layer (linear fit), 17.15 ms per added layer (linear fit), 38.30 ms per added layer (linear fit)
+
+## Batch sweep (baseline)
+
+| batch | forward | first_grad | second_grad | param_grad |
+|---|---|---|---|---|
+| 100 | 11.63 ± 0.25 | 16.40 ± 0.64 | 25.04 ± 0.47 | 49.74 ± 0.85 |
+| 500 | 13.56 ± 0.18 | 20.52 ± 0.77 | 34.89 ± 0.41 | 67.89 ± 0.43 |
+| 1000 | 14.22 ± 0.03 | 24.47 ± 0.50 | 43.38 ± 0.44 | 89.93 ± 1.18 |
+| 2540 | 16.03 ± 0.08 | 31.41 ± 0.13 | 63.14 ± 1.13 | 125.7 ± 0.6 |
+| 5000 | 18.91 ± 0.10 | 42.01 ± 0.78 | 81.60 ± 0.51 | 183.8 ± 0.6 |
+
+Fit per stage (forward, first_grad, second_grad, param_grad): 0.12 = exponent of time ~ batch^k (log-log fit), 0.24 = exponent of time ~ batch^k (log-log fit), 0.30 = exponent of time ~ batch^k (log-log fit), 0.33 = exponent of time ~ batch^k (log-log fit)
+
+## Backend comparison (circuit-only forward)
+
+| case | default.qubit | lightning.qubit | lightning / default |
+|---|---|---|---|
+| narrow | 6.41 ± 0.25 | 719.7 ± 1.7 | 112.3x |
+| baseline | 14.16 ± 0.27 | 1417.5 ± 6.1 | 100.1x |
+| wide | 27.46 ± 0.53 | 2073.3 ± 0.6 | 75.5x |
+| deep | 22.73 ± 0.38 | 2502.7 ± 6.3 | 110.1x |
+| batch100 | 8.14 ± 0.21 | 84.23 ± 1.66 | 10.3x |
+| batch500 | 9.97 ± 0.36 | 293.1 ± 1.8 | 29.4x |
+| batch1000 | 11.80 ± 0.18 | 551.3 ± 2.7 | 46.7x |
+| batch2540 | 14.37 ± 0.16 | 1416.5 ± 2.7 | 98.6x |
+| batch5000 | 16.53 ± 0.29 | 2733.3 ± 8.2 | 165.3x |
+
+- batch exponent on default.qubit: 0.18 (1.0 = linear in batch, 0 = flat)
+- batch exponent on lightning.qubit: 0.89 (1.0 = linear in batch, 0 = flat)
+
+## Drift check (end of run vs. `main`)
+
+| config | forward (end / main) | first_grad (end / main) | second_grad (end / main) | param_grad (end / main) |
+|---|---|---|---|---|
+| classical | 0.984 / 0.983 / 1.025 (fast) | 1.264 / 1.251 / 0.996 (fast) | 1.205 / 1.350 / 1.001 (fast) | 1.038 / 1.041 / 1.007 (fast) |
+| baseline | 0.968 / 0.979 / 1.010 | 1.031 / 1.040 / 0.988 | 1.005 / 1.013 / 1.032 | 1.012 / 1.001 / 0.990 |
+| wide | 1.021 / 1.025 / 1.024 | 1.036 / 1.032 / 0.986 | 0.958 / 0.951 / 0.950 | 1.002 / 0.989 / 1.035 |
+
+Each cell: median / mean / min ratio. Ratios near 1.000 mean the machine state was stable. The verdict uses the median ratio of cells taking at least 5 ms in `main`; cells marked (fast) are faster than that, dominated by timing jitter, and shown for information only.
+
+Largest deviation: 4.2% (wide `second_grad` 0.958), within 10%.
+
+Largest deviation among (fast) cells (not used for the verdict): 26.4% (classical `first_grad` 1.264).
