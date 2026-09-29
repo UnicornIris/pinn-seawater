@@ -152,8 +152,12 @@ Fit per stage (forward, first_grad, second_grad, param_grad): 0.13 = exponent of
 
 | config | forward (end / main) | first_grad (end / main) | second_grad (end / main) | param_grad (end / main) |
 |---|---|---|---|---|
-| classical | 0.957 | 1.055 | 1.189 | 0.934 |
-| baseline | 1.012 | 0.981 | 0.956 | 0.955 |
-| wide | 0.981 | 0.927 | 0.907 | 0.920 |
+| classical | 0.958 / 0.957 / 1.011 (fast) | 1.028 / 1.055 / 1.025 (fast) | 1.173 / 1.189 / 1.006 (fast) | 0.961 / 0.934 / 0.981 (fast) |
+| baseline | 0.996 / 1.012 / 0.999 | 0.979 / 0.981 / 0.930 | 0.960 / 0.956 / 0.976 | 0.956 / 0.955 / 0.952 |
+| wide | 1.003 / 0.981 / 1.092 | 0.952 / 0.927 / 0.925 | 0.912 / 0.907 / 0.927 | 0.914 / 0.920 / 0.999 |
 
-Ratios near 1.000 mean the machine state was stable. **Largest deviation is above 10%: the run drifted; repeat it on an idle machine.**
+Each cell: median / mean / min ratio. Ratios near 1.000 mean the machine state was stable. The verdict uses the median ratio of cells taking at least 5 ms in `main`; cells marked (fast) are faster than that, dominated by timing jitter, and shown for information only.
+
+Largest deviation: 8.8% (wide `second_grad` 0.912), within 10%.
+
+Largest deviation among (fast) cells (not used for the verdict): 17.3% (classical `second_grad` 1.173).

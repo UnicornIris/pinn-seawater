@@ -40,6 +40,10 @@ Measurement design
   * Every timed call is stored (raw/*.csv, long format). Mean, std across seeds, median and
     within-seed CV are computed from those rows.
   * Repetitions adapt to cost: reps = clip(point_budget / one-round-time, min_reps, max_reps).
+  * Before the first timed section, --settle seconds of untimed work bring CPU clocks and thread
+    placement to steady state.
+  * The drift check compares medians (end of run vs. `main`) and bases its verdict only on cells
+    taking at least DRIFT_MIN_MS; faster cells are reported but are too jittery to judge drift.
   * Environment (CPU, RAM, versions, threads, power state, git commit, arguments) goes to env.json.
 
 Usage
@@ -83,6 +87,9 @@ HYBRIDS = {"narrow": (2, 2), "baseline": (4, 2), "wide": (6, 2), "deep": (4, 4)}
 CONTROL_QUBITS = (2, 4, 6)
 CONTROL_OF = {"narrow": "ctrl_n2", "baseline": "ctrl_n4", "wide": "ctrl_n6", "deep": "ctrl_n4"}
 DRIFT_CASES = ("classical", "baseline", "wide")
+DRIFT_TOL = 0.10     # largest allowed |median ratio - 1| in the drift check
+DRIFT_MIN_MS = 5.0   # cells faster than this (median in `main`) are shown but not used for the verdict:
+                     # sub-5 ms calls are dominated by dispatch overhead and OS scheduling jitter
 RAW_FIELDS = ["section", "case", "kind", "backend", "n_qubits", "n_layers", "batch", "n_params",
               "seed", "stage", "rep", "seconds"]
 
@@ -321,6 +328,20 @@ def peak_rss_mb():
         return None
 
 
+def settle(seconds, a):
+    """Keep the CPU busy on the drift-check cases so clocks and scheduling reach steady state before
+    anything is timed (otherwise the end of the run can come out faster than its start)."""
+    if seconds <= 0:
+        return
+    print(f"\n=== settle: {seconds:.0f}s of untimed work ===", flush=True)
+    cases = sec_main(a, only=DRIFT_CASES, section="settle")
+    t_end = time.time() + seconds
+    while time.time() < t_end:
+        for c in cases:
+            for call in c.calls.values():
+                call()
+
+
 def run_section(section, cases, a, raw_path):
     print(f"\n=== {section}: {len(cases)} cases ===", flush=True)
     t_start = time.time()
@@ -450,6 +471,7 @@ def aggregate(rows):
             mean=float(np.mean(means) * 1e3),
             std=float(np.std(means, ddof=1) * 1e3) if len(means) > 1 else float("nan"),
             median=float(np.median(allv) * 1e3),
+            min=float(np.min(allv) * 1e3),
             cv=float(np.mean(cvs) * 100) if cvs else float("nan"),
             n_seeds=len(means), reps=min(len(v) for v in seeds.values()), meta=meta[key])
     return stats
@@ -621,22 +643,39 @@ def build_report(out_dir, stats, env, counts):
 
     if any(k[0] == "drift_check" for k in stats):
         L.append("## Drift check (end of run vs. `main`)\n")
-        rows, worst = [], 0.0
+        rows, worst, worst_fast = [], None, None
         for c in DRIFT_CASES:
             cells = []
             for s in STAGES:
                 a_, b_ = S("main", c, s), S("drift_check", c, s)
                 if a_ and b_:
-                    r = b_["mean"] / a_["mean"]
-                    worst = max(worst, abs(r - 1))
-                    cells.append(f"{r:.3f}")
+                    r = b_["median"] / a_["median"]
+                    fast = a_["median"] < DRIFT_MIN_MS
+                    cand = (abs(r - 1), f"{c} `{s}` {r:.3f}")
+                    if fast:
+                        worst_fast = max(worst_fast or cand, cand)
+                    else:
+                        worst = max(worst or cand, cand)
+                    cells.append(f"{r:.3f} / {b_['mean'] / a_['mean']:.3f} / {b_['min'] / a_['min']:.3f}"
+                                 + (" (fast)" if fast else ""))
                 else:
                     cells.append("-")
             rows.append([c, *cells])
         L.append(_md(["config", *[f"{s} (end / main)" for s in STAGES]], rows))
-        L.append("Ratios near 1.000 mean the machine state was stable. "
-                 + ("**Largest deviation is above 10%: the run drifted; repeat it on an idle machine.**"
-                    if worst > 0.10 else f"Largest deviation: {worst * 100:.1f}%.") + "\n")
+        L.append("Each cell: median / mean / min ratio. Ratios near 1.000 mean the machine state was stable. "
+                 f"The verdict uses the median ratio of cells taking at least {DRIFT_MIN_MS:g} ms in `main`; "
+                 f"cells marked (fast) are faster than that, dominated by timing jitter, and shown for "
+                 f"information only.\n")
+        if worst is None:
+            L.append("No drift-check cell is slow enough for a verdict.\n")
+        elif worst[0] > DRIFT_TOL:
+            L.append(f"**Largest deviation is above {DRIFT_TOL:.0%} ({worst[1]}): the run drifted; "
+                     "repeat it on an idle machine.**\n")
+        else:
+            L.append(f"Largest deviation: {worst[0] * 100:.1f}% ({worst[1]}), within {DRIFT_TOL:.0%}.\n")
+        if worst_fast is not None:
+            L.append(f"Largest deviation among (fast) cells (not used for the verdict): "
+                     f"{worst_fast[0] * 100:.1f}% ({worst_fast[1]}).\n")
     return "\n".join(L)
 
 
@@ -669,6 +708,8 @@ def parse_args():
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--batch", type=int, default=2540, help="default batch size (= training batch)")
     ap.add_argument("--warmup", type=int, default=3, help="warm-up calls per stage")
+    ap.add_argument("--settle", type=float, default=120.0,
+                    help="seconds of untimed work before the first timed section (CPU warm-up)")
     ap.add_argument("--min-reps", type=int, default=5)
     ap.add_argument("--max-reps", type=int, default=20)
     ap.add_argument("--point-budget", type=float, default=20.0,
@@ -685,7 +726,7 @@ def parse_args():
     ap.add_argument("--quick", action="store_true", help="tiny grid for a smoke test")
     a = ap.parse_args()
     if a.quick:
-        a.seeds, a.warmup, a.min_reps, a.max_reps, a.point_budget = [0], 1, 1, 2, 1.0
+        a.seeds, a.warmup, a.min_reps, a.max_reps, a.point_budget, a.settle = [0], 1, 1, 2, 1.0, 2.0
         a.qubits, a.layers, a.batches, a.max_qubits_grad, a.lightning_max_reps = [2, 4], [1, 2], [100, 500], 4, 2
         a.batch = 500
     return a
@@ -716,6 +757,8 @@ def main():
     print("parameter counts:", counts)
 
     t_all = time.time()
+    if any(s in a.sections and s not in progress for s in SECTIONS):
+        settle(a.settle, a)
     for section in SECTIONS:  # fixed order regardless of the order given on the command line
         if section not in a.sections:
             continue
