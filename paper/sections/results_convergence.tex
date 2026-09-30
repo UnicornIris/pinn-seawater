@@ -1,0 +1,50 @@
+\section{Results III: Training Convergence}
+\label{sec:results-convergence}
+
+Figure~\ref{fig:loss-curves} plots training loss (log scale) against Adam/L-BFGS iteration for the
+classical baseline and the baseline hybrid configuration ($n_{\text{qubits}}=4$, $n_{\text{qlayers}}=2$,
+Section~\ref{sec:setup}), for all three boundary conditions and both the forward and inverse problem
+(Section~\ref{sec:background}). This is a sanity check that the hybrid model reaches a comparable loss at
+all, independent of the per-step cost differences reported in Section~\ref{sec:results-timing}.
+
+These curves cover only the baseline hybrid configuration; narrow/wide/deep (Section~\ref{sec:setup-controls})
+are not yet included. \todo{re-run with narrow/wide/deep included, and with the env.json commit-provenance
+logging used by the timing benchmark (Section~\ref{sec:setup}), since this run predates that logging and
+cannot currently be tied to an exact commit.}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.32\linewidth}
+  \includegraphics[width=\linewidth]{loss_dirichlet_fwd.png}
+  \caption{Dirichlet, forward}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+  \includegraphics[width=\linewidth]{loss_neumann_fwd.png}
+  \caption{Neumann, forward}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+  \includegraphics[width=\linewidth]{loss_robin_fwd.png}
+  \caption{Robin, forward}
+\end{subfigure}
+
+\vspace{0.5em}
+\begin{subfigure}{0.32\linewidth}
+  \includegraphics[width=\linewidth]{loss_dirichlet_inv.png}
+  \caption{Dirichlet, inverse}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+  \includegraphics[width=\linewidth]{loss_neumann_inv.png}
+  \caption{Neumann, inverse}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+  \includegraphics[width=\linewidth]{loss_robin_inv.png}
+  \caption{Robin, inverse}
+\end{subfigure}
+\caption{Training loss vs.\ iteration, classical PINN vs.\ QCPINN (baseline configuration), for all three
+boundary conditions and both problem types.}
+\label{fig:loss-curves}
+\end{figure}

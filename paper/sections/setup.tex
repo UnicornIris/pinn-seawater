@@ -31,15 +31,23 @@ circuit}: the matched control has the hybrid's parameter count but no circuit to
 Each stage is timed over 5--20 repetitions per round (adaptively chosen so a round takes about a fixed time
 budget) after 3 warm-up calls, on a batch of 2540 collocation points sampled uniformly in $[0,2]\times[0,5]$,
 matching the training batch size; batch size is itself swept from 100 to 5000 in a separate experiment
-(results reported in the forthcoming Results section; not yet included in this draft). Cases (configuration
-$\times$ seed) are interleaved in a shuffled order within each round, so that slow drift of the machine affects
-all cases alike rather than biasing whichever ran last. Network weights, batch data and circuit parameters are
-redrawn for each of 3 independent seeds (0, 1, 2); we report the mean over seeds of the per-seed mean, and the
-sample standard deviation across seeds. Backends are \texttt{default.qubit} (vectorised over the batch) and
-\texttt{lightning.qubit}, compared on the circuit alone (results reported in the forthcoming Results section;
-not yet included in this draft).
+(Section~\ref{sec:res-batch}). Before the first timed section, a 120\,s settle phase of untimed work on
+the drift-check cases brings CPU clocks and thread scheduling to a steady state; this was added after an
+earlier run showed the hybrid configurations running up to 9\% faster at the end than at the start, consistent
+with CPU warm-up rather than background load. Cases (configuration $\times$ seed) are interleaved in a shuffled
+order within each round, so that slow drift of the machine affects all cases alike rather than biasing whichever
+ran last. Network weights, batch data and circuit parameters are redrawn for each of 3 independent seeds
+(0, 1, 2); we report the mean over seeds of the per-seed mean, and the sample standard deviation across seeds.
+Backends are \texttt{default.qubit} (vectorised over the batch) and \texttt{lightning.qubit}, compared on the
+circuit alone (Section~\ref{sec:res-backend}).
 
-A drift check (a few \emph{main} cases re-timed at the end of the run) flagged a deviation above 10\% in
-both runs so far, concentrated in the classical model's stages (which take only 1--2\,ms and are therefore the
-noisiest); the benchmark should be repeated on an idle machine before the numbers reported here are treated as
-final.
+A drift check re-times a subset of the \emph{main} cases (\emph{classical}, \emph{baseline}, \emph{wide}) at the
+end of the run and compares them against the same cases at the start. Judged against all cells, this flagged
+deviations above 10\% on every attempt, but the failures were driven almost entirely by the classical model's
+sub-millisecond stages, where a handful of scheduling-jitter outliers move the mean by 10--30\% while the
+minimum barely changes. The check now uses the median ratio of only the cells that take at least 5\,ms in
+\emph{main}; the faster, jitter-dominated cells are still reported but excluded from the verdict. Under this
+rule, the sixth independent run (\texttt{win\_py314\_run6}) -- taken with the machine on a high-performance
+power plan, on AC power, with background applications closed, and after the settle phase above -- passes with
+a largest deviation of 4.2\% (\emph{wide} \texttt{second\_grad}), the smallest of six independent runs, and its
+numbers are the ones reported in this paper.

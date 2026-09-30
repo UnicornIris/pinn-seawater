@@ -1,0 +1,33 @@
+\section{Results I: Parameter Count}
+\label{sec:results-params}
+
+Table~\ref{tab:configs} (Section~\ref{sec:configs}) already lists each configuration's classical and
+quantum parameter count; Table~\ref{tab:paramshare} restates the same counts as the two quantities that
+matter for the parameter-count claim -- the quantum branch's share of the total, and the reduction relative
+to the classical baseline.
+
+\begin{table}[h]
+\centering
+\caption{Quantum share of the total parameter count, and the reduction relative to the classical baseline
+(4353 parameters). Quantum share is $4nL$ divided by total parameters.}
+\label{tab:paramshare}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Config & Quantum share & Reduction vs.\ classical \\
+\midrule
+narrow   & 0.66\% & 44.4\% \\
+baseline & 1.25\% & 41.0\% \\
+wide     & 1.77\% & 37.6\% \\
+deep     & 2.46\% & 40.2\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Across the four hybrid configurations, the VQC itself contributes only 16--64 trainable parameters -- at
+most 2.46\% of the network's total. Total parameter count nonetheless falls by 37.6--44.4\% relative to the
+classical baseline, because the classical pre- and post-processor around the VQC is already narrower than
+the classical baseline's five hidden layers of width 32 (Section~\ref{sec:models}). The headline
+parameter-count advantage of the hybrid models is therefore almost entirely a property of the classical
+architecture chosen around the quantum layer, not of the quantum layer itself. This is what motivates the
+size-matched controls of Section~\ref{sec:setup-controls}: comparing a hybrid only to the classical baseline
+would credit the VQC with parameter savings it did not produce.

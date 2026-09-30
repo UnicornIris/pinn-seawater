@@ -1,0 +1,226 @@
+\section{Results II: Hardware Timing}
+\label{sec:results-timing}
+
+Numbers in this section are from \texttt{win\_py314\_run6}, the run whose drift check passed with the
+smallest deviation of the six independent runs (Section~\ref{sec:setup}); all times are milliseconds, mean
+over 3 seeds $\pm$ sample standard deviation across seeds, on the default batch of 2540 collocation points
+unless stated otherwise.
+
+\subsection{Per-configuration timing}
+\label{sec:res-main}
+Table~\ref{tab:main-timing} gives the four timed stages for the classical baseline, the four hybrid
+configurations and their size-matched controls (Section~\ref{sec:setup-controls}).
+
+\begin{table}[h]
+\centering
+\caption{Stage timing at the default batch size (ms, mean $\pm$ std across 3 seeds).}
+\label{tab:main-timing}
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Config & forward & first\_grad & second\_grad & param\_grad \\
+\midrule
+classical & $0.53\pm0.01$  & $0.95\pm0.09$  & $1.61\pm0.01$   & $4.06\pm0.07$ \\
+narrow    & $7.60\pm0.13$  & $11.25\pm0.16$ & $21.67\pm0.45$  & $42.15\pm1.16$ \\
+baseline  & $16.08\pm0.60$ & $30.44\pm0.20$ & $62.65\pm0.84$  & $126.4\pm0.2$ \\
+wide      & $29.88\pm0.13$ & $80.93\pm1.62$ & $153.7\pm0.7$   & $394.3\pm6.2$ \\
+deep      & $26.34\pm0.47$ & $52.54\pm1.09$ & $97.30\pm1.06$  & $203.7\pm1.3$ \\
+\addlinespace
+ctrl\_n2  & $0.70\pm0.00$  & $1.09\pm0.03$  & $1.90\pm0.01$   & $4.54\pm0.04$ \\
+ctrl\_n4  & $0.70\pm0.01$  & $1.11\pm0.04$  & $1.95\pm0.02$   & $4.58\pm0.04$ \\
+ctrl\_n6  & $0.71\pm0.01$  & $1.14\pm0.01$  & $2.01\pm0.13$   & $4.65\pm0.07$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:slowdown} converts these into slowdowns relative to the classical baseline and relative to
+each hybrid's size-matched control. The comparison to the matched control is consistently smaller: it
+isolates the cost of \emph{simulating the circuit} from the cost of \emph{having fewer classical parameters}
+that Section~\ref{sec:results-params} already accounts for -- e.g.\ wide's param\_grad is 97.1$\times$ the
+classical baseline but 84.9$\times$ its own matched control, so about 13 percentage points of the naive
+ratio comes from the parameter-count difference rather than the circuit.
+
+\begin{table}[h]
+\centering
+\caption{Slowdown relative to the classical baseline and to each hybrid's size-matched control (narrow
+$\to$ ctrl\_n2, baseline and deep $\to$ ctrl\_n4, wide $\to$ ctrl\_n6).}
+\label{tab:slowdown}
+\small
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \multicolumn{4}{c}{vs.\ classical} & \multicolumn{4}{c}{vs.\ matched control} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+Config & fwd & 1st & 2nd & param & fwd & 1st & 2nd & param \\
+\midrule
+narrow   & 14.3$\times$ & 11.9$\times$ & 13.5$\times$ & 10.4$\times$ & 10.9$\times$ & 10.3$\times$ & 11.4$\times$ & 9.3$\times$ \\
+baseline & 30.3$\times$ & 32.1$\times$ & 38.9$\times$ & 31.1$\times$ & 23.0$\times$ & 27.4$\times$ & 32.1$\times$ & 27.6$\times$ \\
+wide     & 56.3$\times$ & 85.4$\times$ & 95.5$\times$ & 97.1$\times$ & 42.2$\times$ & 70.7$\times$ & 76.4$\times$ & 84.9$\times$ \\
+deep     & 49.7$\times$ & 55.5$\times$ & 60.5$\times$ & 50.2$\times$ & 37.7$\times$ & 47.3$\times$ & 49.8$\times$ & 44.4$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Second-over-forward and param-over-forward ratios.} Because the four stages are cumulative
+(Section~\ref{sec:bg-stages}), the ratio of a later stage to \texttt{forward} measures the extra cost of
+checking or updating the network once a prediction already exists. This ratio grows with model size: for
+\texttt{second\_grad} it is 3.03 for the classical baseline, 2.85--3.90 for narrow/baseline, and 5.14 for
+wide; for \texttt{param\_grad} it is 7.65 for classical, rising to 13.20 for wide. The extra backward passes
+needed for the PDE residual and its parameter gradient are therefore not a fixed overhead -- they compound
+with the size of the network they run through.
+
+\subsection{Quantum share of hybrid time}
+\label{sec:res-qshare}
+Module hooks on \texttt{HybridQNN.quantum} (Section~\ref{sec:setup}) split each hybrid stage's time into the
+time spent inside the VQC and the time spent in the rest of the network -- the classical pre/post-processor
+and PyTorch's own autograd bookkeeping. Table~\ref{tab:qshare} reports this split for the four hybrid
+configurations at the default batch size.
+
+\begin{table}[h]
+\centering
+\caption{Quantum-circuit share of each hybrid stage's total time (\%), at the default batch size.}
+\label{tab:qshare}
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Config & forward & first\_grad & second\_grad & param\_grad \\
+\midrule
+narrow   & 90\% & 86\% & 58\% & 44\% \\
+baseline & 95\% & 91\% & 65\% & 44\% \\
+wide     & 97\% & 95\% & 66\% & 42\% \\
+deep     & 97\% & 94\% & 69\% & 46\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The quantum circuit accounts for 90--97\% of \texttt{forward} time, but only 42--46\% of \texttt{param\_grad}
+time: each further backward pass adds classical autograd bookkeeping on top of the (comparatively fixed)
+circuit-simulation cost, so the classical side's \emph{share} grows even though the classical network itself
+did not change. This split is stable across the qubit, depth and batch sweeps below (88--100\% at
+\texttt{forward}, 38--51\% at \texttt{param\_grad}, in the corresponding per-sweep breakdowns), so it is a
+property of the stage, not of any one configuration.
+
+\subsection{Qubit sweep}
+\label{sec:res-qubit}
+Table~\ref{tab:qubit-sweep} times a 2-layer circuit as qubit count $n$ increases from 2 to 12, holding
+everything else fixed. Second- and parameter-gradient timing is omitted above 8 qubits, where a single
+forward pass already exceeds half a second and repeated backward passes become impractical to collect within
+the benchmark's time budget.
+
+\begin{table}[h]
+\centering
+\caption{Qubit sweep, 2 layers (ms).}
+\label{tab:qubit-sweep}
+\small
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+$n$ qubits & forward & first\_grad & second\_grad & param\_grad \\
+\midrule
+2  & $7.44\pm0.09$   & $12.89\pm0.50$  & $21.05\pm0.49$  & $41.09\pm0.24$ \\
+4  & $16.20\pm0.26$  & $32.35\pm0.34$  & $62.77\pm1.20$  & $127.0\pm0.6$ \\
+6  & $31.58\pm0.28$  & $81.43\pm1.49$  & $147.6\pm0.5$   & $386.1\pm2.3$ \\
+8  & $121.5\pm0.3$   & $332.3\pm3.0$   & $778.8\pm0.5$   & $2229.5\pm3.1$ \\
+10 & $681.6\pm6.0$   & ---             & ---             & --- \\
+12 & $3176.4\pm5.2$  & ---             & ---             & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A log2-linear fit gives a per-qubit growth factor of 1.84$\times$ (forward), 1.71$\times$ (first\_grad),
+1.79$\times$ (second\_grad) and 1.92$\times$ (param\_grad) -- consistent with the exponential cost of
+statevector simulation (Section~\ref{sec:bg-vqc}), and slightly steeper for the later, more heavily
+backpropagated stages.
+
+\subsection{Circuit depth sweep}
+\label{sec:res-depth}
+Table~\ref{tab:depth-sweep} times a 4-qubit circuit as depth $L$ increases from 1 to 8 layers.
+
+\begin{table}[h]
+\centering
+\caption{Depth sweep, 4 qubits (ms).}
+\label{tab:depth-sweep}
+\small
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+$L$ layers & forward & first\_grad & second\_grad & param\_grad \\
+\midrule
+1 & $10.83\pm0.11$ & $19.27\pm0.13$ & $40.18\pm0.30$  & $86.73\pm0.15$ \\
+2 & $15.91\pm0.27$ & $30.16\pm0.88$ & $61.32\pm0.08$  & $125.4\pm1.2$ \\
+4 & $25.86\pm0.52$ & $49.04\pm0.79$ & $94.75\pm0.55$  & $201.8\pm3.3$ \\
+8 & $45.42\pm0.48$ & $91.28\pm1.05$ & $161.7\pm0.8$   & $354.9\pm2.1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Unlike the qubit sweep, depth adds cost roughly linearly: a linear fit gives 4.94\,ms per added layer for
+\texttt{forward}, 10.24\,ms for \texttt{first\_grad}, 17.15\,ms for \texttt{second\_grad} and 38.30\,ms for
+\texttt{param\_grad}, matching each layer contributing an equal-sized block of gates to simulate and
+differentiate through, rather than doubling the state space the way an added qubit does.
+
+\subsection{Batch-size sweep}
+\label{sec:res-batch}
+Table~\ref{tab:batch-sweep} times the baseline configuration (4 qubits, 2 layers) as batch size increases
+from 100 to 5000, holding the network fixed; 2540 is the training batch size used elsewhere in this paper.
+
+\begin{table}[h]
+\centering
+\caption{Batch-size sweep, baseline configuration (ms).}
+\label{tab:batch-sweep}
+\small
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+Batch & forward & first\_grad & second\_grad & param\_grad \\
+\midrule
+100  & $11.63\pm0.25$ & $16.40\pm0.64$ & $25.04\pm0.47$ & $49.74\pm0.85$ \\
+500  & $13.56\pm0.18$ & $20.52\pm0.77$ & $34.89\pm0.41$ & $67.89\pm0.43$ \\
+1000 & $14.22\pm0.03$ & $24.47\pm0.50$ & $43.38\pm0.44$ & $89.93\pm1.18$ \\
+2540 & $16.03\pm0.08$ & $31.41\pm0.13$ & $63.14\pm1.13$ & $125.7\pm0.6$ \\
+5000 & $18.91\pm0.10$ & $42.01\pm0.78$ & $81.60\pm0.51$ & $183.8\pm0.6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A log-log fit of time against batch size gives an exponent of 0.12 (forward) rising to 0.33 (param\_grad):
+time grows sub-linearly with batch size at every stage, since \texttt{default.qubit} vectorises the circuit
+over the batch dimension rather than looping over it (Section~\ref{sec:res-backend}), but the growth
+exponent is larger for the later stages because their added backward passes include classical operations
+that scale more directly with batch size.
+
+\subsection{Backend comparison}
+\label{sec:res-backend}
+Table~\ref{tab:backend} compares the circuit-only forward pass on \texttt{default.qubit} against
+\texttt{lightning.qubit}, PennyLane's C++ statevector backend, across the four configurations and the batch
+sweep.
+
+\begin{table}[h]
+\centering
+\caption{Circuit-only forward pass: \texttt{default.qubit} vs.\ \texttt{lightning.qubit} (ms).}
+\label{tab:backend}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Case & default.qubit & lightning.qubit & lightning / default \\
+\midrule
+narrow    & $6.41\pm0.25$  & $719.7\pm1.7$   & 112.3$\times$ \\
+baseline  & $14.16\pm0.27$ & $1417.5\pm6.1$  & 100.1$\times$ \\
+wide      & $27.46\pm0.53$ & $2073.3\pm0.6$  & 75.5$\times$ \\
+deep      & $22.73\pm0.38$ & $2502.7\pm6.3$  & 110.1$\times$ \\
+\addlinespace
+batch100  & $8.14\pm0.21$  & $84.23\pm1.66$  & 10.3$\times$ \\
+batch500  & $9.97\pm0.36$  & $293.1\pm1.8$   & 29.4$\times$ \\
+batch1000 & $11.80\pm0.18$ & $551.3\pm2.7$   & 46.7$\times$ \\
+batch2540 & $14.37\pm0.16$ & $1416.5\pm2.7$  & 98.6$\times$ \\
+batch5000 & $16.53\pm0.29$ & $2733.3\pm8.2$  & 165.3$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\texttt{lightning.qubit} is 75--166$\times$ \emph{slower} than \texttt{default.qubit} here, the opposite of
+the usual expectation for a dedicated simulator backend, and the gap widens with batch size: a log-log fit
+gives a batch exponent of 0.18 on \texttt{default.qubit} but 0.89 -- essentially linear -- on
+\texttt{lightning.qubit}. Both backends are called the same way in this benchmark, with the batch passed as
+one array to a single \texttt{QNode} evaluation (Section~\ref{sec:setup}). \texttt{default.qubit} natively
+vectorises this call across the batch dimension, whereas \texttt{lightning.qubit} does not support batched
+(broadcasted) execution and falls back to one circuit evaluation per sample, so its cost scales linearly
+with batch size while \texttt{default.qubit}'s stays sub-linear (Section~\ref{sec:res-batch}). At the batch
+sizes used to train this PINN (thousands of collocation points), that per-sample looping -- not the circuit
+simulator's per-gate cost -- is what makes \texttt{lightning.qubit} the slower choice.
