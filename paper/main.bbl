@@ -1,0 +1,158 @@
+\begin{thebibliography}{23}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Baydin et~al.(2017)Baydin, Pearlmutter, Radul, and
+  Siskind]{baydin2017}
+Atilim~Gunes Baydin, Barak~A. Pearlmutter, Alexey~Andreyevich Radul, and
+  Jeffrey~Mark Siskind.
+\newblock Automatic differentiation in machine learning: a survey.
+\newblock \emph{Journal of Machine Learning Research}, 18\penalty0
+  (153):\penalty0 1--43, 2017.
+
+\bibitem[Benedetti et~al.(2019)Benedetti, Lloyd, Sack, and
+  Fiorentini]{benedetti2019}
+Marcello Benedetti, Erika Lloyd, Stefan Sack, and Mattia Fiorentini.
+\newblock Parameterized quantum circuits as machine learning models.
+\newblock \emph{Quantum Science and Technology}, 4:\penalty0 043001, 2019.
+
+\bibitem[Bergholm et~al.(2018)]{bergholm2018}
+Ville Bergholm et~al.
+\newblock {PennyLane}: Automatic differentiation of hybrid quantum-classical
+  computations.
+\newblock arXiv:1811.04968, 2018.
+
+\bibitem[Cerezo et~al.(2021)]{cerezo2021}
+M.~Cerezo et~al.
+\newblock Variational quantum algorithms.
+\newblock \emph{Nature Reviews Physics}, 3:\penalty0 625--644, 2021.
+
+\bibitem[Chen et~al.(2025)Chen, Shaviner, Chandravamsi, Pisnoy, Frankel, and
+  Pereg]{chen2025}
+Ziv Chen, Gal~G. Shaviner, Hemanth Chandravamsi, Shimon Pisnoy, Steven~H.
+  Frankel, and Uzi Pereg.
+\newblock Quantum physics-informed neural networks for {Maxwell's} equations:
+  Circuit design, ``black hole'' barren plateaus mitigation, and {GPU}
+  acceleration.
+\newblock arXiv:2506.23246, 2025.
+
+\bibitem[Drucker and Le~Cun(1992)]{drucker1992}
+Harris Drucker and Yann Le~Cun.
+\newblock Improving generalization performance using double backpropagation.
+\newblock \emph{IEEE Transactions on Neural Networks}, 3\penalty0 (6):\penalty0
+  991--997, 1992.
+
+\bibitem[Farea et~al.(2025)Farea, Khan, and Celebi]{farea2025}
+Afrah Farea, Saiful Khan, and Mustafa~Serdar Celebi.
+\newblock {QCPINN}: Quantum-classical physics-informed neural networks for
+  solving {PDEs}.
+\newblock \emph{Machine Learning: Science and Technology}, 6:\penalty0 045053,
+  2025.
+\newblock \doi{10.1088/2632-2153/ae1c91}.
+
+\bibitem[Han et~al.(2026)Han, Dong, Liu, Xie, Zhang, and Zhu]{han2026}
+Lei Han, Changming Dong, Yuli Liu, Huarong Xie, Hongchun Zhang, and Weijun Zhu.
+\newblock Application of physics-informed neural networks in solving
+  temperature diffusion equation of seawater.
+\newblock \emph{Journal of Oceanology and Limnology}, 44\penalty0 (1):\penalty0
+  1--18, 2026.
+\newblock \doi{10.1007/s00343-025-4348-1}.
+
+\bibitem[Hewage et~al.(2026)Hewage, Chakkravarthy, and Abeysekara]{hewage2026}
+Prasad Nimantha Madusanka~Ukwatta Hewage, Midhun Chakkravarthy, and
+  Ruvan~Kumara Abeysekara.
+\newblock Variational quantum physics-informed neural networks for hydrological
+  {PDE}-constrained learning with inherent uncertainty quantification.
+\newblock arXiv:2604.09374, 2026.
+
+\bibitem[Kyriienko et~al.(2021)Kyriienko, Paine, and Elfving]{kyriienko2021}
+Oleksandr Kyriienko, Annie~E. Paine, and Vincent~E. Elfving.
+\newblock Solving nonlinear differential equations with differentiable quantum
+  circuits.
+\newblock \emph{Physical Review A}, 103:\penalty0 052416, 2021.
+
+\bibitem[Lantigua et~al.(2025)Lantigua, Giraldi, and Portugal]{lantigua2025}
+Said Lantigua, Gilson Giraldi, and Renato Portugal.
+\newblock A classical-quantum hybrid architecture for physics-informed neural
+  networks.
+\newblock arXiv:2511.07216, 2025.
+
+\bibitem[Leong et~al.(2025)Leong, Ewe, Tran, Zhang, and Khoo]{leong2025}
+Fong~Yew Leong, Wei-Bin Ewe, Si~Bui~Quang Tran, Zhongyuan Zhang, and Jun~Yong
+  Khoo.
+\newblock Hybrid quantum physics-informed neural network: Towards efficient
+  learning of high-speed flows.
+\newblock arXiv:2503.02202, 2025.
+
+\bibitem[Lu et~al.(2021)Lu, Meng, Mao, and Karniadakis]{lu2021deepxde}
+Lu~Lu, Xuhui Meng, Zhiping Mao, and George~Em Karniadakis.
+\newblock {DeepXDE}: A deep learning library for solving differential
+  equations.
+\newblock \emph{SIAM Review}, 63\penalty0 (1):\penalty0 208--228, 2021.
+
+\bibitem[Mari et~al.(2021)Mari, Bromley, and Killoran]{mari2021}
+Andrea Mari, Thomas~R. Bromley, and Nathan Killoran.
+\newblock Estimating the gradient and higher-order derivatives on quantum
+  hardware.
+\newblock \emph{Physical Review A}, 103:\penalty0 012405, 2021.
+
+\bibitem[Mitarai et~al.(2018)Mitarai, Negoro, Kitagawa, and Fujii]{mitarai2018}
+K.~Mitarai, M.~Negoro, M.~Kitagawa, and K.~Fujii.
+\newblock Quantum circuit learning.
+\newblock \emph{Physical Review A}, 98:\penalty0 032309, 2018.
+
+\bibitem[Paszke et~al.(2017)Paszke, Gross, Chintala, Chanan, Yang, DeVito, Lin,
+  Desmaison, Antiga, and Lerer]{paszke2017autodiff}
+Adam Paszke, Sam Gross, Soumith Chintala, Gregory Chanan, Edward Yang, Zachary
+  DeVito, Zeming Lin, Alban Desmaison, Luca Antiga, and Adam Lerer.
+\newblock Automatic differentiation in {PyTorch}.
+\newblock In \emph{NIPS 2017 Autodiff Workshop: The Future of Gradient-based
+  Machine Learning Software and Techniques}, 2017.
+
+\bibitem[Preskill(2018)]{preskill2018}
+John Preskill.
+\newblock Quantum computing in the {NISQ} era and beyond.
+\newblock \emph{Quantum}, 2:\penalty0 79, 2018.
+
+\bibitem[Raissi et~al.(2019)Raissi, Perdikaris, and Karniadakis]{raissi2019}
+Maziar Raissi, Paris Perdikaris, and George~E. Karniadakis.
+\newblock Physics-informed neural networks: A deep learning framework for
+  solving forward and inverse problems involving nonlinear partial differential
+  equations.
+\newblock \emph{Journal of Computational Physics}, 378:\penalty0 686--707,
+  2019.
+
+\bibitem[Rao et~al.(2025)Rao, Liu, and Shen]{rao2025}
+Xiang Rao, Yina Liu, and Yuxuan Shen.
+\newblock Quantum-classical physics-informed neural networks for solving
+  reservoir seepage equations.
+\newblock arXiv:2512.03923, 2025.
+
+\bibitem[Schuld et~al.(2019)Schuld, Bergholm, Gogolin, Izaac, and
+  Killoran]{schuld2019}
+Maria Schuld, Ville Bergholm, Christian Gogolin, Josh Izaac, and Nathan
+  Killoran.
+\newblock Evaluating analytic gradients on quantum hardware.
+\newblock \emph{Physical Review A}, 99:\penalty0 032331, 2019.
+
+\bibitem[Schuld et~al.(2021)Schuld, Sweke, and Meyer]{schuld2021encoding}
+Maria Schuld, Ryan Sweke, and Johannes~Jakob Meyer.
+\newblock Effect of data encoding on the expressive power of variational
+  quantum-machine-learning models.
+\newblock \emph{Physical Review A}, 103:\penalty0 032430, 2021.
+
+\bibitem[Trahan et~al.(2024)Trahan, Loveland, and Dent]{trahan2024}
+Corey Trahan, Mark Loveland, and Samuel Dent.
+\newblock Quantum physics-informed neural networks.
+\newblock \emph{Entropy}, 26\penalty0 (8):\penalty0 649, 2024.
+\newblock \doi{10.3390/e26080649}.
+
+\bibitem[Xu et~al.(2023)Xu, Benjamin, Sun, Yuan, and Zhang]{xu2023}
+Xiaosi Xu, Simon Benjamin, Jinzhao Sun, Xiao Yuan, and Pan Zhang.
+\newblock A herculean task: Classical simulation of quantum computers.
+\newblock arXiv:2302.08880, 2023.
+
+\end{thebibliography}
