@@ -11,8 +11,8 @@ All five models of Table~\ref{tab:configs} (the classical PINN and the four hybr
 Section~\ref{sec:configs}) are trained on all three boundary conditions and on both the forward and the inverse
 problem (Section~\ref{sec:background}), six scenarios in total. Each scenario has a budget of $N_A$ Adam steps
 and $N_L$ L-BFGS iterations: $N_A=5000$, $N_L=10000$ for Dirichlet and Neumann, and $N_A=N_L=20000$ with the
-PDE residual weighted by 10 for Robin. \todo{reconcile with Section~\ref{sec:bg-loss}, which states that all
-loss terms have unit weight.} The two model families spend this budget differently. The classical PINN runs
+PDE residual weighted by 10 for Robin (Section~\ref{sec:bg-loss}). The two model families spend this budget
+differently. The classical PINN runs
 $N_A$ Adam steps at learning rate $10^{-3}$ and then L-BFGS (strong-Wolfe line search) for at most $N_L$
 iterations. The hybrids skip L-BFGS, whose line search needs many extra circuit evaluations per iteration, and
 instead run Adam for $N_A+N_L$ steps (learning rate $5\times10^{-3}$ for the circuit parameters and $10^{-3}$

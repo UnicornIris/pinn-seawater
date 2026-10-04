@@ -17,10 +17,15 @@ Let $\Th(z,t)$ be the network output with trainable parameters $\theta$ and inpu
 The PINN loss combines four mean-squared terms,
 \begin{equation}
   \label{eq:loss}
-  \Lloss(\theta) \;=\; \Lloss_{\text{PDE}} + \Lloss_{\text{BC}} + \Lloss_{\text{IC}} + \Lloss_{\text{data}},
+  \Lloss(\theta) \;=\; w_{\text{PDE}}\,\Lloss_{\text{PDE}} + \Lloss_{\text{BC}} + \Lloss_{\text{IC}} + \Lloss_{\text{data}},
 \end{equation}
 namely the PDE residual at interior collocation points, the boundary-condition residual, the misfit to the initial
-condition, and, for inverse problems only, the misfit to observations; all terms have unit weight.
+condition, and, for inverse problems only, the misfit to observations. The boundary, initial and data terms have
+unit weight. The PDE term has weight $w_{\text{PDE}}=1$ for the Dirichlet and Neumann problems and
+$w_{\text{PDE}}=10$ for the Robin problems, which needed both this weight and a larger step budget to converge
+(Section~\ref{sec:results-convergence}). The weight scales a term of the
+loss and does not change which derivatives are computed, so it has no effect on the per-evaluation costs of
+Section~\ref{sec:results-timing}.
 
 \paragraph{Initial and boundary conditions.}
 Closed-form solutions exist for all three boundary-condition types. Table~\ref{tab:bc} lists the conditions
@@ -157,6 +162,7 @@ Symbol / term & Meaning \\
 $x=(z,t)$ & network input: depth and time \\
 $\Th$ & network output, temperature, with parameters $\theta$ \\
 $\kz$ & thermal diffusivity \\
+$w_{\text{PDE}}$ & weight of the PDE term in the loss (1 for Dirichlet and Neumann, 10 for Robin) \\
 $\nabla_x\Th$ & first-order input gradient (\texttt{first\_grad} stage) \\
 $\partial^2\Th/\partial z^2$ & second-order input gradient (\texttt{second\_grad} stage) \\
 $\partial\Lloss_{\text{PDE}}/\partial\theta$ & parameter gradient (\texttt{param\_grad} stage; the optimiser's own backward pass) \\
