@@ -17,9 +17,12 @@ $N_A$ Adam steps at learning rate $10^{-3}$ and then L-BFGS (strong-Wolfe line s
 iterations. The hybrids skip L-BFGS, whose line search needs many extra circuit evaluations per iteration, and
 instead run Adam for $N_A+N_L$ steps (learning rate $5\times10^{-3}$ for the circuit parameters and $10^{-3}$
 for the rest) with cosine decay to $10^{-5}$. The optimiser therefore differs between the two families, and a
-loss or accuracy gap between a hybrid and the classical PINN reflects both the model and its optimiser.
-Comparisons among the four hybrids, which share the same optimiser, are free of this confound. For a given
-scenario every model uses the same seed, so all of them see the same collocation points, initial data and
+loss or accuracy gap between a hybrid and the classical PINN reflects both the model and its optimiser. To
+separate the two, we also train the classical PINN with the hybrids' schedule: Adam for $N_A+N_L$ steps at
+learning rate $10^{-3}$ with the same cosine decay, and no L-BFGS. We call this the \emph{classical (Adam)}
+control; it shares the hybrids' optimiser and schedule, and differs from them in the network. Comparisons among
+the four hybrids, which share the same optimiser, are free of the confound as well. For a given scenario every
+model uses the same seed, so all of them see the same collocation points, initial data and
 observations; only the network differs. Accuracy is measured against the reference solution as mean absolute
 error (MAE).
 
@@ -28,15 +31,25 @@ Figure~\ref{fig:loss-curves} plots training loss (log scale) against loss evalua
 the classical PINN's L-BFGS phase this counts line-search evaluations, not iterations. At the end of training
 every hybrid configuration has a higher loss than the classical PINN in every scenario, by a factor of 1.6 to
 57 for narrow, baseline, wide and deep alike, except narrow on the two Robin problems (270 and 390). Most of
-this gap opens after the classical PINN switches to L-BFGS. Over the same first $N_A$ Adam steps, baseline,
-wide and deep reach a loss within a factor of 0.2 to 4 of the classical PINN's; on the Dirichlet and Robin
-problems they are mostly lower. Narrow is the exception, ending the Adam phase 5 to 17 times above the
-classical PINN in four of the six scenarios. The loss gap at the end of training thus says more about Adam
-versus L-BFGS than about the hybrid models themselves.
+this gap opens after the classical PINN switches to L-BFGS, where its loss drops by a further factor of 20 to
+110 within 500 to 1700 evaluations. The classical (Adam) control, trained with the hybrids' optimiser,
+shows no such drop. Against it, baseline and wide end at 0.2 times its loss on both Dirichlet problems and
+within a factor of 0.9 to 2.2 on the Robin and inverse Neumann problems; only the forward Neumann problem
+leaves them clearly above it (4.5 and 1.7 times). Narrow ends above the control in four of the six scenarios, by
+up to a factor of 25 on Robin.
 
 \paragraph{Accuracy.}
-Table~\ref{tab:conv-mae} lists the test MAE. No hybrid configuration matches the classical PINN in any
-scenario: the best hybrid's MAE is 1.5 to 6.6 times the classical PINN's, and the worst's is 4.1 to 27 times.
+Table~\ref{tab:conv-mae} lists the test MAE. No hybrid configuration matches the classical PINN trained with
+L-BFGS in any scenario: the best hybrid's MAE is 1.5 to 6.6 times the classical PINN's, and the worst's is
+4.1 to 27 times. The optimiser accounts for most of this gap. Without L-BFGS, the classical PINN's own MAE
+rises by a factor of 2.4 to 4.5, and against this classical (Adam) control the best hybrid is more accurate
+in four of the six scenarios (0.63 to 0.95 times its MAE on the Dirichlet and Robin problems) and less
+accurate only on the two Neumann problems (1.6 times). Baseline on its own beats the control in the same four
+scenarios, with 59\% of its parameters (Table~\ref{tab:configs}). Narrow and deep do not beat it anywhere.
+In this run, then, a hybrid of the right size is about as accurate as the larger classical network when both
+use the same optimiser. The much larger gap to the Adam+L-BFGS column is what L-BFGS adds, and L-BFGS is the
+optimiser the hybrids skip because of their per-evaluation cost (Section~\ref{sec:results-timing}).
+
 Among the hybrids, no configuration is best everywhere. Baseline or wide is the most accurate in five of the
 six scenarios, deep in the remaining one (Neumann, forward). Going from 2 to 4 qubits (narrow to baseline)
 lowers the MAE in five of six scenarios, by up to a factor of 8 on the Robin problems; going from 4 to 6
@@ -46,19 +59,24 @@ trends; the per-seed spread of the hybrids' MAE is not known.
 
 \begin{table}[t]
 \centering
-\caption{Test MAE after training (seed 0). Lower is better; bold marks the most accurate hybrid in each row.}
+\caption{Test MAE after training (seed 0). Lower is better. \emph{Classical} uses Adam then L-BFGS; the
+classical (Adam) control and all hybrids use Adam with cosine decay only. Bold marks the most accurate hybrid in
+each row; an underline marks hybrids more accurate than the classical (Adam) control.}
 \label{tab:conv-mae}
 \small
-\begin{tabular}{@{}lrrrrr@{}}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Scenario & classical & narrow & baseline & wide & deep \\
+ & \multicolumn{2}{c}{classical} & \multicolumn{4}{c}{hybrid} \\
+\cmidrule(lr){2-3}\cmidrule(l){4-7}
+Scenario & Adam+L-BFGS & Adam & narrow & baseline & wide & deep \\
 \midrule
-Dirichlet, forward & $2.31\times10^{-4}$ & $8.06\times10^{-4}$ & $\mathbf{3.40\times10^{-4}}$ & $4.26\times10^{-4}$ & $9.86\times10^{-4}$ \\
-Neumann, forward   & $1.67\times10^{-4}$ & $1.85\times10^{-3}$ & $2.39\times10^{-3}$ & $1.31\times10^{-3}$ & $\mathbf{1.09\times10^{-3}}$ \\
-Robin, forward     & $8.96\times10^{-5}$ & $2.03\times10^{-3}$ & $\mathbf{3.84\times10^{-4}}$ & $4.88\times10^{-4}$ & $4.23\times10^{-4}$ \\
-Dirichlet, inverse & $2.87\times10^{-4}$ & $7.13\times10^{-4}$ & $\mathbf{5.00\times10^{-4}}$ & $6.76\times10^{-4}$ & $1.16\times10^{-3}$ \\
-Neumann, inverse   & $2.49\times10^{-4}$ & $2.80\times10^{-3}$ & $1.18\times10^{-3}$ & $\mathbf{1.05\times10^{-3}}$ & $1.70\times10^{-3}$ \\
-Robin, inverse     & $8.66\times10^{-5}$ & $2.34\times10^{-3}$ & $2.90\times10^{-4}$ & $\mathbf{2.72\times10^{-4}}$ & $6.47\times10^{-4}$ \\
+Dirichlet, fwd & $2.31\times10^{-4}$ & $5.43\times10^{-4}$ & $8.06\times10^{-4}$ & $\underline{\mathbf{3.40\times10^{-4}}}$ & $\underline{4.26\times10^{-4}}$ & $9.86\times10^{-4}$ \\
+Neumann, fwd   & $1.66\times10^{-4}$ & $6.93\times10^{-4}$ & $1.85\times10^{-3}$ & $2.39\times10^{-3}$ & $1.31\times10^{-3}$ & $\mathbf{1.09\times10^{-3}}$ \\
+Robin, fwd     & $8.96\times10^{-5}$ & $4.06\times10^{-4}$ & $2.03\times10^{-3}$ & $\underline{\mathbf{3.84\times10^{-4}}}$ & $4.88\times10^{-4}$ & $4.23\times10^{-4}$ \\
+Dirichlet, inv & $2.87\times10^{-4}$ & $6.95\times10^{-4}$ & $7.13\times10^{-4}$ & $\underline{\mathbf{5.00\times10^{-4}}}$ & $\underline{6.76\times10^{-4}}$ & $1.16\times10^{-3}$ \\
+Neumann, inv   & $2.49\times10^{-4}$ & $6.66\times10^{-4}$ & $2.80\times10^{-3}$ & $1.18\times10^{-3}$ & $\mathbf{1.05\times10^{-3}}$ & $1.70\times10^{-3}$ \\
+Robin, inv     & $8.66\times10^{-5}$ & $3.42\times10^{-4}$ & $2.34\times10^{-3}$ & $\underline{2.90\times10^{-4}}$ & $\underline{\mathbf{2.72\times10^{-4}}}$ & $6.47\times10^{-4}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -109,7 +127,8 @@ per-evaluation costs.
   \caption{Robin, inverse}
 \end{subfigure}
 \caption{Training loss vs.\ loss evaluation (seed 0) for the classical PINN (Adam, then L-BFGS from the dotted
-line) and the four hybrid configurations (Adam with cosine decay), for all three boundary conditions and both
+line), the classical (Adam) control and the four hybrid configurations (both Adam with cosine decay), for all
+three boundary conditions and both
 problem types. Each curve is a centred rolling median over 201 evaluations, which hides Adam's step-to-step
 oscillation; the classical curve's Adam and L-BFGS phases are smoothed separately. The classical curve ends early
 because L-BFGS meets its stopping tolerance.}

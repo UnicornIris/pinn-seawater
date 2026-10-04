@@ -1,7 +1,8 @@
 """
 Loss-curve figures for the convergence section (Figure fig:loss-curves).
 
-One panel per scenario: the classical PINN plus all four hybrid configurations,
+One panel per scenario: the classical PINN (Adam + L-BFGS, and the Adam-only optimiser control)
+plus all four hybrid configurations,
 read from the per-run raw/*_history.csv files written by qcpinn_convergence_benchmark.py.
 The classical curve is taken from the baseline run; it is identical in every run
 (same seed, same data, deterministic training). Curves are a rolling median (SMOOTH_WINDOW).
@@ -31,6 +32,7 @@ RUNS = {
     "deep":     "results/accuracy_convergence/deep_seed0",
 }
 CLASSICAL_RUN = RUNS["baseline"]
+CLASSICAL_ADAM_RUN = "results/accuracy_convergence/classical_adam_seed0"  # optimiser control
 
 SCENARIOS = {  # history-file prefix -> output figure name
     "DE_Dir_FWD":  "loss_dirichlet_fwd.png",
@@ -44,7 +46,8 @@ SCENARIOS = {  # history-file prefix -> output figure name
 # Categorical slots 1-4 of the reference palette, in fixed order; classical is the neutral reference.
 # Line styles give a second encoding for print and colour-vision deficiency.
 STYLE = {
-    "classical": dict(color="#3d3d3a", ls="-",  label="Classical"),
+    "classical":      dict(color="#3d3d3a", ls="-",  label="Classical"),
+    "classical_adam": dict(color="#9a9993", ls=(0, (5, 1.5)), label="Classical (Adam)"),
     "narrow":    dict(color="#2a78d6", ls="-",  label="Narrow"),
     "baseline":  dict(color="#eb6834", ls="--", label="Baseline"),
     "wide":      dict(color="#1baf7a", ls="-.", label="Wide"),
@@ -82,6 +85,8 @@ def plot_scenario(scenario, out_path):
         ax.axvline(lbfgs_start, color="#8a8a85", lw=0.7, ls=(0, (2, 2)))
         ax.text(lbfgs_start, 1.02, " L-BFGS", transform=ax.get_xaxis_transform(),
                 fontsize=6, color="#6b6b66", va="bottom", ha="left")
+    loss, _ = read_history(CLASSICAL_ADAM_RUN, scenario, "classical_adam")
+    ax.semilogy(rolling_median(loss), lw=1.2, **STYLE["classical_adam"])
     for cfg, run_dir in RUNS.items():
         loss, _ = read_history(run_dir, scenario, "hybrid")
         ax.semilogy(rolling_median(loss), lw=1.2, **STYLE[cfg])
