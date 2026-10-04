@@ -1,14 +1,80 @@
 \section{Results III: Training Convergence}
 \label{sec:results-convergence}
 
-Figure~\ref{fig:loss-curves} plots training loss (log scale) against Adam/L-BFGS iteration for the
-classical baseline and the baseline hybrid configuration ($n_{\text{qubits}}=4$, $n_{\text{qlayers}}=2$,
-Section~\ref{sec:setup}), for all three boundary conditions and both the forward and inverse problem
-(Section~\ref{sec:background}). This is a sanity check that the hybrid model reaches a comparable loss at
-all, independent of the per-step cost differences reported in Section~\ref{sec:results-timing}.
+Sections~\ref{sec:results-params} and~\ref{sec:results-timing} compare the models per evaluation; this section
+checks that the hybrid models actually train, i.e.\ that they reach a loss and an accuracy comparable to the
+classical PINN within a comparable training budget. It is a sanity check, not an accuracy benchmark: each
+model is trained once (seed 0), on one PDE, with one training schedule.
 
-These curves cover only the baseline hybrid configuration; narrow/wide/deep (Section~\ref{sec:setup-controls})
-are not yet included. \todo{re-run with narrow/wide/deep included.}
+\paragraph{Setup.}
+All five models of Table~\ref{tab:configs} (the classical PINN and the four hybrid configurations of
+Section~\ref{sec:configs}) are trained on all three boundary conditions and on both the forward and the inverse
+problem (Section~\ref{sec:background}), six scenarios in total. Each scenario has a budget of $N_A$ Adam steps
+and $N_L$ L-BFGS iterations: $N_A=5000$, $N_L=10000$ for Dirichlet and Neumann, and $N_A=N_L=20000$ with the
+PDE residual weighted by 10 for Robin. \todo{reconcile with Section~\ref{sec:bg-loss}, which states that all
+loss terms have unit weight.} The two model families spend this budget differently. The classical PINN runs
+$N_A$ Adam steps at learning rate $10^{-3}$ and then L-BFGS (strong-Wolfe line search) for at most $N_L$
+iterations. The hybrids skip L-BFGS, whose line search needs many extra circuit evaluations per iteration, and
+instead run Adam for $N_A+N_L$ steps (learning rate $5\times10^{-3}$ for the circuit parameters and $10^{-3}$
+for the rest) with cosine decay to $10^{-5}$. The optimiser therefore differs between the two families, and a
+loss or accuracy gap between a hybrid and the classical PINN reflects both the model and its optimiser.
+Comparisons among the four hybrids, which share the same optimiser, are free of this confound. For a given
+scenario every model uses the same seed, so all of them see the same collocation points, initial data and
+observations; only the network differs. Accuracy is measured against the reference solution as mean absolute
+error (MAE).
+
+\paragraph{Loss curves.}
+Figure~\ref{fig:loss-curves} plots training loss (log scale) against loss evaluation for each scenario; for
+the classical PINN's L-BFGS phase this counts line-search evaluations, not iterations. At the end of training
+every hybrid configuration has a higher loss than the classical PINN in every scenario, by a factor of 1.6 to
+57 for narrow, baseline, wide and deep alike, except narrow on the two Robin problems (270 and 390). Most of
+this gap opens after the classical PINN switches to L-BFGS. Over the same first $N_A$ Adam steps, baseline,
+wide and deep reach a loss within a factor of 0.2 to 4 of the classical PINN's; on the Dirichlet and Robin
+problems they are mostly lower. Narrow is the exception, ending the Adam phase 5 to 17 times above the
+classical PINN in four of the six scenarios. The loss gap at the end of training thus says more about Adam
+versus L-BFGS than about the hybrid models themselves.
+
+\paragraph{Accuracy.}
+Table~\ref{tab:conv-mae} lists the test MAE. No hybrid configuration matches the classical PINN in any
+scenario: the best hybrid's MAE is 1.5 to 6.6 times the classical PINN's, and the worst's is 4.1 to 27 times.
+Among the hybrids, no configuration is best everywhere. Baseline or wide is the most accurate in five of the
+six scenarios, deep in the remaining one (Neumann, forward). Going from 2 to 4 qubits (narrow to baseline)
+lowers the MAE in five of six scenarios, by up to a factor of 8 on the Robin problems; going from 4 to 6
+qubits (baseline to wide) lowers it in three and raises it in three. Doubling the depth (baseline to deep)
+raises the MAE in five of six scenarios. With a single seed these are observations about this run, not
+trends; the per-seed spread of the hybrids' MAE is not known.
+
+\begin{table}[t]
+\centering
+\caption{Test MAE after training (seed 0). Lower is better; bold marks the most accurate hybrid in each row.}
+\label{tab:conv-mae}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Scenario & classical & narrow & baseline & wide & deep \\
+\midrule
+Dirichlet, forward & $2.31\times10^{-4}$ & $8.06\times10^{-4}$ & $\mathbf{3.40\times10^{-4}}$ & $4.26\times10^{-4}$ & $9.86\times10^{-4}$ \\
+Neumann, forward   & $1.67\times10^{-4}$ & $1.85\times10^{-3}$ & $2.39\times10^{-3}$ & $1.31\times10^{-3}$ & $\mathbf{1.09\times10^{-3}}$ \\
+Robin, forward     & $8.96\times10^{-5}$ & $2.03\times10^{-3}$ & $\mathbf{3.84\times10^{-4}}$ & $4.88\times10^{-4}$ & $4.23\times10^{-4}$ \\
+Dirichlet, inverse & $2.87\times10^{-4}$ & $7.13\times10^{-4}$ & $\mathbf{5.00\times10^{-4}}$ & $6.76\times10^{-4}$ & $1.16\times10^{-3}$ \\
+Neumann, inverse   & $2.49\times10^{-4}$ & $2.80\times10^{-3}$ & $1.18\times10^{-3}$ & $\mathbf{1.05\times10^{-3}}$ & $1.70\times10^{-3}$ \\
+Robin, inverse     & $8.66\times10^{-5}$ & $2.34\times10^{-3}$ & $2.90\times10^{-4}$ & $\mathbf{2.72\times10^{-4}}$ & $6.47\times10^{-4}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Loss evaluations and wall-clock time.}
+The classical PINN's L-BFGS phase meets its stopping tolerance well inside its budget in every scenario, after
+500 to 1700 loss evaluations, so it evaluates the loss 5500 to 6200 times in total (Dirichlet and Neumann)
+and about 21000 to 22000 times (Robin). Each hybrid evaluates it a fixed $N_A+N_L$ times: 15000 and 40000,
+i.e.\ 1.8 to 2.7 times as often as the classical PINN.
+
+Training a hybrid took from about 15 minutes (narrow, Dirichlet) to over 5 hours (wide, Robin) per scenario,
+against at most 6 minutes for the classical PINN. We do not derive slowdown factors from these times. Each
+comes from a single run on a workstation that was not reserved for the benchmark. Background load inflated
+some of them: wide's inverse problems took 2.0 to 2.7 times as long as its forward problems with the same step
+counts, against about 1.15 times for narrow. Section~\ref{sec:results-timing} gives the controlled
+per-evaluation costs.
 
 \begin{figure}[t]
 \centering
@@ -42,7 +108,10 @@ are not yet included. \todo{re-run with narrow/wide/deep included.}
   \includegraphics[width=\linewidth]{loss_robin_inv.png}
   \caption{Robin, inverse}
 \end{subfigure}
-\caption{Training loss vs.\ iteration, classical PINN vs.\ QCPINN (baseline configuration), for all three
-boundary conditions and both problem types.}
+\caption{Training loss vs.\ loss evaluation (seed 0) for the classical PINN (Adam, then L-BFGS from the dotted
+line) and the four hybrid configurations (Adam with cosine decay), for all three boundary conditions and both
+problem types. Each curve is a centred rolling median over 201 evaluations, which hides Adam's step-to-step
+oscillation; the classical curve's Adam and L-BFGS phases are smoothed separately. The classical curve ends early
+because L-BFGS meets its stopping tolerance.}
 \label{fig:loss-curves}
 \end{figure}
