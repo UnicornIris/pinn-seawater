@@ -269,8 +269,14 @@ class PINN:
             L += self.w_data * torch.mean((self.net(self.zt_data) - self.T_data) ** 2)
         return L
 
-    def train(self, adam_steps=5000, lbfgs_iter=10000, eta_min=1e-5):
+    def train(self, adam_steps=5000, lbfgs_iter=10000, eta_min=1e-5, optimizer="auto"):
+        """optimizer="auto": quantum nets run Adam with cosine decay for adam_steps + lbfgs_iter steps,
+        classical nets run Adam then L-BFGS. optimizer="adam_cosine" forces the Adam-only schedule on
+        any net (the optimiser control for classical-vs-hybrid comparisons)."""
+        if optimizer not in ("auto", "adam_cosine"):
+            raise ValueError(f"unknown optimizer {optimizer!r}")
         is_quantum = isinstance(self.net, HybridQNN)
+        adam_only = is_quantum or optimizer == "adam_cosine"
 
         if is_quantum:
             # Separate LR: quantum params need higher LR; classical pre/post lower
@@ -312,13 +318,13 @@ class PINN:
         self.grad_norm_history = []
         self.circuit_grad_norm_history = []
         # Index into the histories where L-BFGS begins; None if this run never
-        # switches to L-BFGS (the quantum path stays on Adam throughout).
-        self.lbfgs_start = None if is_quantum else adam_steps
+        # switches to L-BFGS (the Adam-only path stays on Adam throughout).
+        self.lbfgs_start = None if adam_only else adam_steps
         t0 = time.time()
 
         # For quantum: skip L-BFGS (too expensive per QNode eval), run more Adam steps
-        # with cosine LR decay; for classical: keep original Adam + L-BFGS
-        if is_quantum:
+        # with cosine LR decay; for classical: keep original Adam + L-BFGS unless forced Adam-only
+        if adam_only:
             total_steps = adam_steps + lbfgs_iter  # equivalent total budget
             adam = torch.optim.Adam(param_groups)
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

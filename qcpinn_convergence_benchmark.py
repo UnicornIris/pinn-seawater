@@ -28,6 +28,7 @@ Usage:
     python qcpinn_convergence_benchmark.py --quick              # smoke test, ~1 min
     python qcpinn_convergence_benchmark.py --scenarios dirichlet_fwd robin_inv
     python qcpinn_convergence_benchmark.py --seed 1 --tag reseed1
+    python qcpinn_convergence_benchmark.py --classical-adam-only --tag classical_adam_seed0 --paper-figures-dir ""
 
 Needs qcpinn_seawater.py next to this file (model and PINN definitions).
 """
@@ -105,7 +106,7 @@ def make_net(model_type, n_qubits, n_qlayers):
     return ClassicalDNN() if model_type == "classical" else HybridQNN(n_qubits=n_qubits, n_qlayers=n_qlayers)
 
 
-def run_one(scenario_key, model_type, n_qubits, n_qlayers, seed):
+def run_one(scenario_key, model_type, n_qubits, n_qlayers, seed, optimizer="auto"):
     """Seed, build the network + PINN (so training data and init are reproducible from `seed`
     alone), and train. Returns (model, eval_result, elapsed_seconds)."""
     cfg = SCENARIOS[scenario_key]
@@ -113,7 +114,7 @@ def run_one(scenario_key, model_type, n_qubits, n_qlayers, seed):
     torch.manual_seed(seed)
     net = make_net(model_type, n_qubits, n_qlayers)
     model = PINN(bc_type=cfg["bc"], inverse=cfg["inverse"], network=net, w_pde=cfg["w_pde"])
-    elapsed = model.train(adam_steps=cfg["adam_steps"], lbfgs_iter=cfg["lbfgs_iter"])
+    elapsed = model.train(adam_steps=cfg["adam_steps"], lbfgs_iter=cfg["lbfgs_iter"], optimizer=optimizer)
     res = model.evaluate()
     return model, res, elapsed
 
@@ -183,6 +184,9 @@ def main():
     ap.add_argument("--paper-figures-dir", default="paper/figures",
                      help="also write the 6 PNGs here, at the filenames results_convergence.tex "
                           "expects (loss_<bc>_<fwd|inv>.png); pass '' to skip")
+    ap.add_argument("--classical-adam-only", action="store_true",
+                     help="optimiser control: train only the classical PINN, with the hybrids' Adam + cosine "
+                          "schedule (adam_steps + lbfgs_iter steps, no L-BFGS); no hybrid, no figures")
     ap.add_argument("--quick", action="store_true",
                      help="tiny step counts for a smoke test (~1 min), not for the paper")
     args = ap.parse_args()
@@ -206,30 +210,34 @@ def main():
     print(f"git commit {env['git_commit']}" + (" (DIRTY)" if env["git_dirty"] else " (clean)"))
     print(f"output: {out_dir}\n")
 
+    # (row label, network, optimizer) per scenario
+    if args.classical_adam_only:
+        models = [("classical_adam", "classical", "adam_cosine")]
+    else:
+        models = [("classical", "classical", "auto"), ("hybrid", "hybrid", "auto")]
+
     rows = []
     for key in args.scenarios:
         cfg = SCENARIOS[key]
         print(f"=== {cfg['label']}  (bc={cfg['bc']}, inverse={cfg['inverse']}) ===")
 
-        print("  -- classical --")
-        classical_model, classical_res, classical_t = run_one(key, "classical", n_qubits, n_qlayers, args.seed)
-        print(f"     MAE={classical_res['mae']:.3e}  L2={classical_res['l2']:.3e}  t={classical_t:.1f}s")
-
-        print("  -- hybrid --")
-        hybrid_model, hybrid_res, hybrid_t = run_one(key, "hybrid", n_qubits, n_qlayers, args.seed)
-        print(f"     MAE={hybrid_res['mae']:.3e}  L2={hybrid_res['l2']:.3e}  t={hybrid_t:.1f}s")
-
-        for model_type, model, res, elapsed in [
-            ("classical", classical_model, classical_res, classical_t),
-            ("hybrid", hybrid_model, hybrid_res, hybrid_t),
-        ]:
-            save_history_csv(model, os.path.join(raw_dir, f"{cfg['label']}_{model_type}_history.csv"))
-            rows.append(dict(scenario=cfg["label"], model=model_type,
+        trained = {}
+        for label, model_type, optimizer in models:
+            print(f"  -- {label} --")
+            model, res, elapsed = run_one(key, model_type, n_qubits, n_qlayers, args.seed, optimizer)
+            print(f"     MAE={res['mae']:.3e}  L2={res['l2']:.3e}  t={elapsed:.1f}s")
+            trained[label] = model
+            save_history_csv(model, os.path.join(raw_dir, f"{cfg['label']}_{label}_history.csv"))
+            rows.append(dict(scenario=cfg["label"], model=label,
                               final_loss=model.loss_history[-1], mae=res["mae"], l2=res["l2"],
                               pde_residual=model.mean_pde_residual(),
                               kz_err=res["kz_err"] if res["kz_err"] is not None else float("nan"),
                               time_s=elapsed))
 
+        if args.classical_adam_only:
+            print()
+            continue
+        classical_model, hybrid_model = trained["classical"], trained["hybrid"]
         bc, problem = key.rsplit("_", 1)  # "dirichlet_fwd" -> ("dirichlet", "fwd")
         fname = f"loss_{bc}_{problem}.png"
         title = f"Loss convergence: Classical vs QCPINN ({cfg['label']})"
